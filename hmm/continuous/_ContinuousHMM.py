@@ -4,8 +4,23 @@ Created on Nov 12, 2012
 @author: GuyZ
 '''
 
-from hmm._BaseHMM import _BaseHMM
 import numpy
+import os
+import sys
+
+from numpy.distutils.core import numpy_cmdclass
+
+from Utilz import writeListOfListToTextFile
+from hmm._BaseHMM import _BaseHMM
+
+
+parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
+pathUtils = os.path.join(parentDir, 'utilsLyrics')
+if pathUtils not in sys.path: sys.path.append(pathUtils )
+
+
+# DEBUG
+PATH_BMAP = '/Users/joro/Downloads/bmap'
 
 class _ContinuousHMM(_BaseHMM):
     '''
@@ -74,19 +89,31 @@ class _ContinuousHMM(_BaseHMM):
                         covars_tmp[i][j] = self.covars[i][j]
             self.covars = covars_tmp
               
-    def _mapB(self,observations):
+    def _mapB(self, observations):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         This method highly optimizes the running time, since all PDF calculations
         are done here once in each training iteration.
         
         - self.Bmix_map - computesand maps Bjm(Ot) to Bjm(t).
-        '''        
+        log precomputed
+        '''   
+        if os.path.exists(PATH_BMAP): 
+            self.B_map = numpy.loadtxt(PATH_BMAP)
+            if self.B_map.shape[1] != len(observations):
+                sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(PATH_BMAP))
+            return     
+        
+    
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
+        return
+    
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
-                self.B_map[j][t] = self._calcbjt(j, t, observations[t])
+                self.B_map[j][t] = numpy.log(self._calcbjt(j, t, observations[t]))
+#         self._normalizeBByMax()
+        writeListOfListToTextFile(self.B_map, None , PATH_BMAP)
                 
     """
     b[j][Ot] = sum(1...M)w[j][m]*b[j][m][Ot]
@@ -222,6 +249,17 @@ class _ContinuousHMM(_BaseHMM):
         for i in xrange(len(arr)):
             arr[i] = (arr[i]/summ)
         return arr
+    
+    def _normalizeBByMax(self):
+        '''
+        Helper method to normalize probabilities. Divide them by max in array.
+        '''
+        maxProb = numpy.amax(self.B_map)
+        
+        for j in xrange(self.B_map.shape[0]):
+            for t in xrange(self.B_map.shape[1]):
+                self.B_map[j][t] = self.B_map[j][t] / maxProb
+    
     
     def _pdf(self,x,mean,covar):
         '''

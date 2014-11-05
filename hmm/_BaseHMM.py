@@ -10,6 +10,7 @@ This code is based on:
 
 import numpy
 
+
 class _BaseHMM(object):
     '''
     Implements the basis for all deriving classes, but should not be used directly.

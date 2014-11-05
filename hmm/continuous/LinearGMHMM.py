@@ -4,9 +4,11 @@ Created on Nov 14, 2012
 @author: GuyZ
 '''
 
+import numpy
+
 from GMHMM import GMHMM
 from hmm.weights.Linear import Linear
-import numpy
+
 
 class LinearGMHMM(GMHMM,Linear):
     '''

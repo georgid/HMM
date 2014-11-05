@@ -4,9 +4,11 @@ Created on Nov 13, 2012
 @author: GuyZ
 '''
 
+import numpy
+
 from hmm.continuous.GMHMM import GMHMM
 from hmm.discrete.DiscreteHMM import DiscreteHMM
-import numpy
+
 
 def test_simple():
     n = 2

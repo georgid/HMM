@@ -4,10 +4,14 @@ Created on Nov 12, 2012
 @author: GuyZ
 '''
 
-from _ContinuousHMM import _ContinuousHMM
 import numpy
 
-class GMHMM(_ContinuousHMM):
+from _DurationHMM import _DurationHMM
+
+
+# from _ContinuousHMM import _ContinuousHMM
+# class GMHMM(_ContinuousHMM):
+class GMHMM(_DurationHMM):
     '''
     A Gaussian Mixtures HMM - This is a representation of a continuous HMM,
     containing a mixture of gaussians in each hidden state.
@@ -17,9 +21,9 @@ class GMHMM(_ContinuousHMM):
 
     def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double,verbose=False):
         '''
-        See _ContinuousHMM constructor for more information
+        See base class constructor for more information
         '''
-        _ContinuousHMM.__init__(self,n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
+        super(GMHMM, self).__init__(n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
         
     def _pdf(self,x,mean,covar):
         '''
