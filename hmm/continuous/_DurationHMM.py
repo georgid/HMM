@@ -12,6 +12,7 @@ from numpy.distutils.core import numpy_cmdclass
 
 from Utilz import writeListOfListToTextFile
 from _ContinuousHMM import _ContinuousHMM
+from hmm.continuous.DurationPdf  import DurationPdf
 
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
@@ -33,21 +34,26 @@ class _DurationHMM(_ContinuousHMM):
             '''
             _ContinuousHMM.__init__(self,n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
             
-            self._setDurForStates()
-            
+                      
     
-    def _setDurForStates(self):
+    def setDurForStates(self, listDurations):
         '''
-        mapping of state to its duration (from score).
-        read from  Phoneme. duration
-        STUB
-        '''
-        self.durationMap =  numpy.zeros((self.n), dtype=numpy.int)
-        self.durationMap[:] = 30
-        self.durationMap =  numpy.arange(1,self.n+1)
-        self.durationMap  *= 1
+        mapping of state to its duration (in number of frames).
+        @param listDurations read from  state.Durations
         
-        self.MAX_DUR = numpy.amax(self.durationMap)
+        '''
+        if len(listDurations) != self.n:
+            sys.exit("not exact duration")
+            
+        self.durationMap =  numpy.array(listDurations, dtype=int)
+
+#         STUB
+#         self.durationMap =  numpy.arange(1,self.n+1)
+#         
+       
+        # set duration lookup table
+        self.MAX_DUR = int(numpy.amax(self.durationMap))
+        self.durationPdf = DurationPdf(self.MAX_DUR)
 
     def getWaitLogLik(self, d, state):
         '''
@@ -55,13 +61,18 @@ class _DurationHMM(_ContinuousHMM):
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  
-        D = self.durationMap[state]
-        return numpy.log( float(d)/float(D) )
+        
+        DMaxCurrState = self.durationMap[state]
+        
+        return self.durationPdf.getWaitLogLik(d, DMaxCurrState)
          
     
     def _viterbiForcedDur(self, observations):
         # sanity check. make sure durations are init from score
-        # TODO:
+        try: 
+            self.durationMap
+        except NameError:
+            sys.exit(NameError.message)
         
         print "loading probs all observations"
         self._mapB(observations)
@@ -99,6 +110,7 @@ class _DurationHMM(_ContinuousHMM):
         '''
         maxD_currState = self.durationMap[currState]
         
+        #TODO take 20% more from dur from score 
         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, maxD_currState)
                 
         self.phi[t][currState] = maxPhi
@@ -128,7 +140,7 @@ class _DurationHMM(_ContinuousHMM):
         
         # select max (kappa and phi_star)
       
-        for t in  range(1,self.MAX_DUR):          
+        for t in  range(1,int(self.MAX_DUR)):          
             for currState in range(1, self.n): 
                 phiStar, fromState,  maxDurIndex  =  self.getMaxPhi(t, currState, t)
                 
@@ -159,7 +171,7 @@ class _DurationHMM(_ContinuousHMM):
             sum = numpy.log(self.pi[currState]) 
             D = self.durationMap[currState]
             
-            for d in range(1,D+1):
+            for d in range(1,int(D)+1):
                 sum += self.B_map[currState, d-1]
                 quant = (sum + self.getWaitLogLik(d, currState))
                 self.kappas[d-1,currState] = quant
@@ -190,10 +202,12 @@ class _DurationHMM(_ContinuousHMM):
           
         for d in range(1, maxPossibleDuration+1):
             sumObsProb += self.B_map[currState, t-d+1]
-            updateQuantity = self.phi[t-d][fromState] + self.getWaitLogLik(d, currState) + sumObsProb
+            currPhi = self.phi[t-d][fromState]
+            updateQuantity = currPhi + self.getWaitLogLik(d, currState) + sumObsProb
             #sanity check
-            if updateQuantity == 0:
-                print "underflow error at time {}, state {}, duration {}".format(t, currState, d)
+            # DEBUG:
+            if updateQuantity == -Infinity:
+                print "some prob=0 at time {}, state {}, duration {}".format(t, currState, d)
             
             if updateQuantity > maxPhi:
                 maxPhi = updateQuantity

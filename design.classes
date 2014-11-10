@@ -1,0 +1,15 @@
+_DurationHMM 
+===========-
+extends continuous._ContinuousHMM
+tackles the explicit-duration decoding as explained in Chen, Ruofeng, et al. "CHORD RECOGNITION USING DURATION-EXPLICIT HIDDEN MARKOV MODELS."
+ 
+ Currently only forced alignment implemented:
+ _viterbiForcedDur
+ 
+ 
+ 
+ 
+ Path
+ ------------
+ Convenience class - holds the resulting optimal path (state sequence) 
+ the backtracking is done in _backtrackForcedDur()

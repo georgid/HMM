@@ -106,7 +106,7 @@ class _ContinuousHMM(_BaseHMM):
         
     
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
-        return
+#         return
     
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):

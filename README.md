@@ -16,4 +16,10 @@ Major supported features:
 
 Open concerns:
 * Examples are somewhat out-dated
-* Convergence isn't guaranteed when using certain weighing functions 
+* Convergence isn't guaranteed when using certain weighing functions
+-----------------------------------
+
+
+Duration-model extension 
+==============
+* underflow due to multiplication of probabilities is handled by sum log(probs)

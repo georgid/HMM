@@ -21,9 +21,9 @@ class Path(object):
         # DEBUG: 
         self.durations = []
 
-        self.pathRaw = self._backtrackForcedAlignemnt(chiBackPointers, psiBackPointer)
+        self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer)
     
-    def _backtrackForcedAlignemnt(self, chiBackPointers, psiBackPointer):
+    def _backtrackForcedDur(self, chiBackPointers, psiBackPointer):
         '''
         starts at last state and assumes states increase by one
         '''
@@ -60,7 +60,8 @@ class Path(object):
         rawPath[0:t+1] = currState
         # DEBUG: 
         self.durations.append(t)
-            
+        
+        self.durations.reverse()    
         return rawPath
     
     def _path2stateIndices(self):
@@ -79,7 +80,6 @@ class Path(object):
         '''
         DEBUG: print durations
         ''' 
-        self.durations.reverse()
         print self.durations
     
              
