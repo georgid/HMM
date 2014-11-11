@@ -10,6 +10,16 @@ import sys
 from numpy.core.arrayprint import set_printoptions
 import numpy
 from numpy.core.numeric import Infinity
+import os
+
+
+# to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
+MINIMAL_PROB = sys.float_info.min
+
+parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
+pathUtils = os.path.join(parentDir, 'utilsLyrics')
+if pathUtils not in sys.path: sys.path.append(pathUtils )
+from Utilz import writeListOfListToTextFile
 
 
 class DurationPdf(object):
@@ -40,6 +50,8 @@ class DurationPdf(object):
     def _constructLogLiksTable(self):
         for currMaxDur in range(1,int(self.MAX_DUR)+1):
             self._constructLogLikDistrib( currMaxDur)
+        writeListOfListToTextFile(self.lookupTableLogLiks, None , '/tmp/lookupTable') 
+
             
         
     def _constructLogLikDistrib(self, maxDur):
@@ -70,7 +82,7 @@ class DurationPdf(object):
         if d==0:
             sys.exit("d = 0 not implemented yet")
             return 
-        
+        # used in kappa. -Inf because we never want kappa to be selected as max case
         elif d >= 2*maxDur + 1:
             return -Infinity
         else:
