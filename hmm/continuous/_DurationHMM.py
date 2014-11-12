@@ -22,6 +22,8 @@ from Utilz import writeListOfListToTextFile, writeListToTextFile
 
 PATH_LOGS='/Users/joro/Downloads/'
 
+# DURATION_WEIGHT 
+ALPHA =  1
 
 
 class _DurationHMM(_ContinuousHMM):
@@ -170,16 +172,19 @@ class _DurationHMM(_ContinuousHMM):
         '''
         print 'init kappas...'
         self.kappas = numpy.empty((self.MAX_DUR,self.n), dtype=self.precision)
+        # if some kappa[t, state] = -INFINITY and phi[t,state] = -INFINITY, no initialization is possilbe
         self.kappas.fill(numpy.log(MINIMAL_PROB))
         
         for currState in range(self.n):
-            sum = numpy.log(self.pi[currState]) 
+            sumObsProb = 0
             currDmax = self.durationMap[currState]
+            currLogPi = numpy.log(self.pi[currState])
             
             for d in range(1,int(currDmax)+1):
-                sum += self.B_map[currState, d-1]
-                quant = (sum + self.getWaitLogLik(d, currState))
-                self.kappas[d-1,currState] = quant
+                                
+                updateQuantity, sumObsProb = self._calcUpdateQuantity(d-1, d, currState, 0, sumObsProb)
+                
+                self.kappas[d-1,currState] = currLogPi + updateQuantity
                 
                  #sanity check
                 if self.kappas[d-1,currState] == 0:
@@ -198,6 +203,9 @@ class _DurationHMM(_ContinuousHMM):
         @return: maxPhi - pprob
         @return: fromState - from which state we come (hard coded to prev. state in forced alignment) 
         @return: maxDurIndex - index Duration with max prob. INdex for t begins at 0
+        
+        used in _initBeginingPhis
+        used in _calcCurrStatePhi
         '''
         sumObsProb = 0
          # due to forced alignment
@@ -208,20 +216,15 @@ class _DurationHMM(_ContinuousHMM):
 #         print "in getMaxPhi: maxDuration =",  maxPossibleDuration
           
         for d in range(1, maxPossibleDuration+1):
-            sumObsProb += self.B_map[currState, t-d+1]
+     
             
-#             print "\t d= ", d
+            
             currPhi = self.phi[t-d][fromState]
-#             print "\t currPhi= ",currPhi 
-            waitLogLik = self.getWaitLogLik(d, currState)
-#             print "\t waitLogLik= ", waitLogLik
-            
-            updateQuantity = currPhi + waitLogLik + sumObsProb
+                        
+            updateQuantity, sumObsProb = self._calcUpdateQuantity(t-d+1, d, currState, currPhi, sumObsProb)
             #sanity check
-            # DEBUG:
-#             if updateQuantity == -Infinity:
-#                 print "some prob=0 at time {}, state {}, duration {}".format(t, currState, d)
-            
+
+                
             if updateQuantity > maxPhi:
                 maxPhi = updateQuantity
                 maxDurIndex = d
@@ -230,5 +233,28 @@ class _DurationHMM(_ContinuousHMM):
             sys.exit(" no max duration at time {} and state {}".format(t, currState))
         return maxPhi, fromState, maxDurIndex    
     
-   
+    def _calcUpdateQuantity(self, whichTime, whichDuration, currState, currPhi, sumObsProb):
+        '''
+        calc update quantity.
+        used in getMaxPhi
+        used in init kappas
+        '''
+        
+    #       print " d= {} time = {}, state = {}".format(whichDuration, whichTime, currState ) 
+
+#             print "\t\t currPhi= {}".format(currPhi)  
+
+        
+        waitLogLik = self.getWaitLogLik(whichDuration, currState)
+#         print  "\t\t waitLogLik= {}".format (waitLogLik) 
+            
+        sumObsProb += self.B_map[currState, whichTime]
+#         print "\t\t sumObsProb= {}".format( sumObsProb)      
+        
+        updateQuantity = currPhi + ALPHA * waitLogLik + (1-ALPHA)*sumObsProb
+#         updateQuantity = currPhi +  waitLogLik + sumObsProb
+#             print "\t UPDATE QUANT= {}".format(updateQuantity)  
+
+
+        return updateQuantity, sumObsProb
              

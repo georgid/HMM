@@ -8,19 +8,26 @@ import numpy
 import os
 import sys
 
-from numpy.distutils.core import numpy_cmdclass
+parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
-from Utilz import writeListOfListToTextFile
+hmmDir = os.path.join(parentDir, 'HMM/hmm')
+print hmmDir
+if hmmDir not in sys.path: sys.path.append(parentDir)
+
 from hmm._BaseHMM import _BaseHMM
 
+import logging
 
-parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
+parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
 
+from Utilz import writeListOfListToTextFile
 
 # DEBUG
-PATH_BMAP = '/Users/joro/Downloads/bmap'
+PATH_LOGS='/Users/joro/Downloads/'
+
+PATH_BMAP = PATH_LOGS + '/bmap'
 
 class _ContinuousHMM(_BaseHMM):
     '''
@@ -98,6 +105,9 @@ class _ContinuousHMM(_BaseHMM):
         - self.Bmix_map - computesand maps Bjm(Ot) to Bjm(t).
         log precomputed
         '''   
+        self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
+        return
+    
         if os.path.exists(PATH_BMAP): 
             self.B_map = numpy.loadtxt(PATH_BMAP)
             if self.B_map.shape[1] != len(observations):
@@ -105,8 +115,7 @@ class _ContinuousHMM(_BaseHMM):
             return     
         
     
-        self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
-        return
+       
     
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
@@ -240,16 +249,8 @@ class _ContinuousHMM(_BaseHMM):
         
         return w_new, means_new, covars_new
     
-    def _normalize(self, arr):
-        '''
-        Helper method to normalize probabilities, so that
-        they all sum to '1'
-        '''
-        summ = numpy.sum(arr)
-        for i in xrange(len(arr)):
-            arr[i] = (arr[i]/summ)
-        return arr
-    
+
+
     def _normalizeBByMax(self):
         '''
         Helper method to normalize probabilities. Divide them by max in array.
@@ -268,4 +269,14 @@ class _ContinuousHMM(_BaseHMM):
         mixture component.
         '''        
         raise NotImplementedError("PDF function must be implemented")
+    
+def _normalize(arr):
+        '''
+        Helper method to normalize probabilities, so that
+        they all sum to '1'
+        '''
+        summ = numpy.sum(arr)
+        for i in xrange(len(arr)):
+            arr[i] = (arr[i]/summ)
+        return arr
     
