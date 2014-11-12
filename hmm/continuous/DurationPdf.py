@@ -12,6 +12,8 @@ import numpy
 from numpy.core.numeric import Infinity
 import os
 
+from _ContinuousHMM import PATH_LOGS
+import _ContinuousHMM
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -21,6 +23,9 @@ pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
 from Utilz import writeListOfListToTextFile
 
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class DurationPdf(object):
     '''
@@ -37,7 +42,11 @@ class DurationPdf(object):
         maxDur x currDur lookupTable of probs
         '''
         self.MAX_DUR = MAX_DUR
-        self.lookupTableLogLiks  = numpy.empty((MAX_DUR, 2 * MAX_DUR + 1))
+        '''
+        how much of a phoneme may be longer than its max_dur 
+        '''
+        self.MAX_ALLOWED_DURATION_RATIO = 2
+        self.lookupTableLogLiks  = numpy.empty((MAX_DUR, self.MAX_ALLOWED_DURATION_RATIO * MAX_DUR + 1))
         self.lookupTableLogLiks.fill(-Infinity)
         
         self.minVal = norm.ppf(0.01)
@@ -48,26 +57,45 @@ class DurationPdf(object):
    
     
     def _constructLogLiksTable(self):
-        for currMaxDur in range(1,int(self.MAX_DUR)+1):
-            self._constructLogLikDistrib( currMaxDur)
-        writeListOfListToTextFile(self.lookupTableLogLiks, None , '/tmp/lookupTable') 
+        PATH_LOOKUP_DUR_TABLE = PATH_LOGS + '/lookupTable'
+        if os.path.exists(PATH_LOOKUP_DUR_TABLE): 
+            self.lookupTableLogLiks = numpy.loadtxt(PATH_LOOKUP_DUR_TABLE)
+            
+            # check
+            if self.lookupTableLogLiks.shape[0] != self.MAX_DUR:
+                sys.exit('not enough durations in loaded table. Max should be {}  delete table and generate them again'.format(self.MAX_DUR))
+            return   
+        
+        # construct
+        else:
+            logging.info("constructing duration Probability lookup Table...")
+
+            for currMaxDur in range(1,int(self.MAX_DUR)+1):
+                self._constructLogLikDistrib( currMaxDur)
+            writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 
 
             
         
-    def _constructLogLikDistrib(self, maxDur):
+    def _constructLogLikDistrib(self, currMaxDur):
         '''
-        calc and store logLiks for given @param maxDur
-        range maxDur is (1,maxDur)
+        calc and store logLiks for given @param currMaxDur
+        range currMaxDur is (1,currMaxDur)
         '''
         
          #get min and max
      
-        numBins = 2*maxDur + 1
+        numBins = self.MAX_ALLOWED_DURATION_RATIO * currMaxDur + 1
         quantileVals  = linspace(self.minVal, self.maxVal, numBins)
         
         for d in range(1,numBins):
-            logLik = numpy.log( norm.pdf(quantileVals[d]))
-            self.lookupTableLogLiks[maxDur-1,d] = logLik
+            lik = norm.pdf(quantileVals[d])
+            self.lookupTableLogLiks[currMaxDur-1,d] = lik
+        
+        self.lookupTableLogLiks[currMaxDur-1,1:numBins] = _ContinuousHMM._normalize( self.lookupTableLogLiks[currMaxDur-1,1:numBins]) 
+            
+        logging.debug("sum={} for max dur {}".format(sum(self.lookupTableLogLiks[currMaxDur-1,1:numBins]), currMaxDur))
+        
+        self.lookupTableLogLiks[currMaxDur-1,1:numBins] = numpy.log( self.lookupTableLogLiks[currMaxDur-1,1:numBins] )
             
             
             
@@ -82,8 +110,8 @@ class DurationPdf(object):
         if d==0:
             sys.exit("d = 0 not implemented yet")
             return 
-        # used in kappa. -Inf because we never want kappa to be selected as max case
-        elif d >= 2*maxDur + 1:
+        # used in kappa. -Inf because we never want kappa to be selected if over max region of duration
+        elif d >= self.MAX_ALLOWED_DURATION_RATIO * maxDur + 1:
             return -Infinity
         else:
             return self.lookupTableLogLiks[maxDur-1,d] 
