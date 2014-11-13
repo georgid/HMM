@@ -8,7 +8,6 @@ import os
 import sys
 
 from numpy.core.numeric import Infinity
-from numpy.distutils.core import numpy_cmdclass
 
 from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
@@ -23,8 +22,12 @@ from Utilz import writeListOfListToTextFile, writeListToTextFile
 PATH_LOGS='/Users/joro/Downloads/'
 
 # DURATION_WEIGHT 
-ALPHA =  1
+ALPHA =  0.99
+OVER_MAX_DUR_FACTOR = 1.3
 
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 class _DurationHMM(_ContinuousHMM):
     '''
@@ -53,7 +56,6 @@ class _DurationHMM(_ContinuousHMM):
 
 #         STUB
 #         self.durationMap =  numpy.arange(1,self.n+1)
-#         
        
         # set duration lookup table
         self.MAX_DUR = int(numpy.amax(self.durationMap))
@@ -112,10 +114,13 @@ class _DurationHMM(_ContinuousHMM):
         '''
         calc. quantities in recursion  equation
         '''
-        maxD_currState = self.durationMap[currState]
-        
-        #TODO take 20% more from dur from score 
-        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, maxD_currState)
+        logger.info("at time t={}".format(t) )          
+
+        currMaxDur = self.durationMap[currState]
+        # take 30% more from dur from score 
+        currMaxDur = int(round(OVER_MAX_DUR_FACTOR * currMaxDur))
+       
+        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, currMaxDur)
         
         
                 
@@ -146,16 +151,23 @@ class _DurationHMM(_ContinuousHMM):
         
         # select max (kappa and phi_star)
       
-        for t in  range(1,int(self.MAX_DUR)):          
+        for t in  range(1,int(self.MAX_DUR)):
+            logger.info("at time t={}".format(t) )          
             for currState in range(1, self.n): 
-                phiStar, fromState,  maxDurIndex  =  self.getMaxPhi(t, currState, t)
+                
+                currMaxDur = self.durationMap[currState]
+                # take 30% more from dur from score 
+                currMaxDur = int(round(OVER_MAX_DUR_FACTOR * currMaxDur))
+                
+                currReducedMaxDur = min(t, currMaxDur)
+                phiStar, fromState,  maxDurIndex  =  self.getMaxPhi(t, currState, currReducedMaxDur)
                 
                 if  phiStar > self.kappas[t,currState] :
                     self.phi[t,currState] = phiStar
                     self.psi[t,currState] = fromState
                     self.chi[t,currState] = maxDurIndex
                 else:
-                    print "phi more than kappa at time {} and state {}".format(t, currState)                        
+                    logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
                     self.phi[t, currState] = self.kappas[t, currState]
                     # kappas mean still at beginning state
                     self.psi[t,currState] = currState
@@ -216,15 +228,12 @@ class _DurationHMM(_ContinuousHMM):
 #         print "in getMaxPhi: maxDuration =",  maxPossibleDuration
           
         for d in range(1, maxPossibleDuration+1):
-     
-            
-            
+
             currPhi = self.phi[t-d][fromState]
                         
             updateQuantity, sumObsProb = self._calcUpdateQuantity(t-d+1, d, currState, currPhi, sumObsProb)
             #sanity check
 
-                
             if updateQuantity > maxPhi:
                 maxPhi = updateQuantity
                 maxDurIndex = d

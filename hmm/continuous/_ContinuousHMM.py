@@ -106,7 +106,7 @@ class _ContinuousHMM(_BaseHMM):
         log precomputed
         '''   
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
-        return
+#         return
     
         if os.path.exists(PATH_BMAP): 
             self.B_map = numpy.loadtxt(PATH_BMAP)
@@ -120,8 +120,17 @@ class _ContinuousHMM(_BaseHMM):
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
-                self.B_map[j][t] = numpy.log(self._calcbjt(j, t, observations[t]))
-#         self._normalizeBByMax()
+                lik = self._calcbjt(j, t, observations[t])
+                self.B_map[j,t] = lik
+        self._normalizeBByMax()
+        
+        # normalize over states
+        for t in xrange(len(observations)):
+             self.B_map[:,t] = _ContinuousHMM._normalize(self.B_map[:,t])
+             logging.info("sum={} at time {}".format(sum(self.B_map[:,t]), t))
+             
+        self.B_map = numpy.log( self.B_map)
+                 
         writeListOfListToTextFile(self.B_map, None , PATH_BMAP)
                 
     """

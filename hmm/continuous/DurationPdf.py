@@ -91,7 +91,8 @@ class DurationPdf(object):
             lik = norm.pdf(quantileVals[d])
             self.lookupTableLogLiks[currMaxDur-1,d] = lik
         
-        self.lookupTableLogLiks[currMaxDur-1,1:numBins] = _ContinuousHMM._normalize( self.lookupTableLogLiks[currMaxDur-1,1:numBins]) 
+        # normalize all liks to sum to 1
+#         self.lookupTableLogLiks[currMaxDur-1,1:numBins] = _ContinuousHMM._normalize( self.lookupTableLogLiks[currMaxDur-1,1:numBins]) 
             
         logging.debug("sum={} for max dur {}".format(sum(self.lookupTableLogLiks[currMaxDur-1,1:numBins]), currMaxDur))
         
