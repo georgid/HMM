@@ -32,7 +32,7 @@ class DurationPdf(object):
     classdocs
     '''
 
-    def __init__(self,  MAX_DUR, distributionType=1):
+    def __init__(self,  MAX_DUR, usePersistentProbs,  distributionType=1):
         
         # 1 - normal. 
         # 2 - gamma TODO: implement
@@ -52,18 +52,19 @@ class DurationPdf(object):
         self.minVal = norm.ppf(0.01)
         self.maxVal= norm.ppf(0.99)
         
-        self._constructLogLiksTable()
+        self._constructLogLiksTable(usePersistentProbs)
        
    
     
-    def _constructLogLiksTable(self):
+    def _constructLogLiksTable(self, usePersistentProbs):
+        
         PATH_LOOKUP_DUR_TABLE = PATH_LOGS + '/lookupTable'
-        if os.path.exists(PATH_LOOKUP_DUR_TABLE): 
+        if usePersistentProbs and os.path.exists(PATH_LOOKUP_DUR_TABLE): 
             self.lookupTableLogLiks = numpy.loadtxt(PATH_LOOKUP_DUR_TABLE)
             
             # check
             if self.lookupTableLogLiks.shape[0] != self.MAX_DUR:
-                sys.exit('not enough durations in loaded table. Max should be {}  delete table and generate them again'.format(self.MAX_DUR))
+                sys.exit('not enough durations in loaded table. Max should be {}  delete table {} and generate them again'.format(self.MAX_DUR, PATH_LOOKUP_DUR_TABLE))
             return   
         
         # construct

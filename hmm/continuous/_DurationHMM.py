@@ -27,7 +27,7 @@ OVER_MAX_DUR_FACTOR = 1.3
 
 import logging
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 
 class _DurationHMM(_ContinuousHMM):
     '''
@@ -59,7 +59,7 @@ class _DurationHMM(_ContinuousHMM):
        
         # set duration lookup table
         self.MAX_DUR = int(numpy.amax(self.durationMap))
-        self.durationPdf = DurationPdf(self.MAX_DUR)
+        self.durationPdf = DurationPdf(self.MAX_DUR, self.usePersistentFiles)
 
     def getWaitLogLik(self, d, state):
         '''

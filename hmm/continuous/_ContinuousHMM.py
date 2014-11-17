@@ -7,6 +7,7 @@ Created on Nov 12, 2012
 import numpy
 import os
 import sys
+from cookielib import logger
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
@@ -23,6 +24,10 @@ pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
 
 from Utilz import writeListOfListToTextFile
+
+# to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
+MINIMAL_PROB = sys.float_info.min
+
 
 # DEBUG
 PATH_LOGS='/Users/joro/Downloads/'
@@ -74,7 +79,18 @@ class _ContinuousHMM(_BaseHMM):
         self.min_std = min_std
 
         self.reset(init_type=init_type)
-
+        
+        '''
+        flag to load some decoding info from cached files, for example bMap and durationLookup table  
+        makes decoding faster 
+        '''
+        self.usePersistentFiles = False
+    
+    def setPersitentFiles(self, usePersistentFiles):
+       
+        self.usePersistentFiles =  usePersistentFiles
+        
+    
     def reset(self,init_type='uniform'):
         '''
         If required, initalize the model parameters according the selected policy
@@ -108,26 +124,28 @@ class _ContinuousHMM(_BaseHMM):
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
 #         return
     
-        if os.path.exists(PATH_BMAP): 
+        if self.usePersistentFiles and os.path.exists(PATH_BMAP): 
             self.B_map = numpy.loadtxt(PATH_BMAP)
             if self.B_map.shape[1] != len(observations):
                 sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(PATH_BMAP))
             return     
         
-    
        
     
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
                 lik = self._calcbjt(j, t, observations[t])
+                if lik == 0: 
+                    logging.warning("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
+                    lik = MINIMAL_PROB
                 self.B_map[j,t] = lik
         self._normalizeBByMax()
         
         # normalize over states
         for t in xrange(len(observations)):
-             self.B_map[:,t] = _ContinuousHMM._normalize(self.B_map[:,t])
-             logging.info("sum={} at time {}".format(sum(self.B_map[:,t]), t))
+             self.B_map[:,t] = _normalize(self.B_map[:,t])
+             logging.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
              
         self.B_map = numpy.log( self.B_map)
                  
