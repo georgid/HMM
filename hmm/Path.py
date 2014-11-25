@@ -12,7 +12,7 @@ class Path(object):
     classdocs
     '''
     
-
+    
 
     def __init__(self, chiBackPointers, psiBackPointer):
         '''
@@ -22,9 +22,13 @@ class Path(object):
         self.durations = []
         # ending time for each state
         self.endingTimes = []
-
-        self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer)
+        
+        if chiBackPointers != None and psiBackPointer != None:
+            self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer)
     
+    def setPatRaw(self, pathRaw):
+        self.pathRaw = pathRaw
+        
     def _backtrackForcedDur(self, chiBackPointers, psiBackPointer):
         '''
         starts at last state and assumes states increase by one
