@@ -2,18 +2,37 @@ _DurationHMM
 ===========-
 extends continuous._ContinuousHMM
 tackles the explicit-duration decoding as explained in Chen, Ruofeng, et al. "CHORD RECOGNITION USING DURATION-EXPLICIT HIDDEN MARKOV MODELS."
- 
+
+durations (in #frames) are set for model from a list
+hmm.continuous._DurationHMM._DurationHMM.setDurForStates
+
+durations are get from self.durationPdf in 
+hmm.continuous._DurationHMM._DurationHMM.getWaitLogLik 
+
  Currently only forced alignment implemented:
- _viterbiForcedDur
+ _viterbiForcedDur()
+  
  
  
+DurationPdf
+================== 
+likelihoods for duration distributions with different durations are precomputed 
+has currently only normal distribution 
  
+  
+
+ 
+ _ContinousHMM
+ ================
+_mapB()  has been changed to allow the persistent storage of p(y_t|x_i) because calc_b_j() is very slow. 
+ persistent storage is controlled by self.usePersistentFiles()
  
  Path
- ------------
+==================
  Convenience class - holds the resulting optimal self.pathRaw (state sequence) 
  
  the backtracking is done in _backtrackForcedDur() for when withDuration = TRUE 
  and 
  _backtrackForced() when withDuration = FALSE
+ 
  

@@ -11,6 +11,7 @@ from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
+from hmm.continuous._ContinuousHMM import PATH_LOGS
 
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
@@ -19,7 +20,8 @@ if pathUtils not in sys.path: sys.path.append(pathUtils )
 
 from Utilz import writeListOfListToTextFile, writeListToTextFile
 
-PATH_LOGS='/Users/joro/Downloads/'
+# PATH_LOGS='/Users/joro/Downloads/'
+# PATH_LOGS='.'
 
 # DURATION_WEIGHT 
 ALPHA =  0.99
@@ -52,6 +54,7 @@ class _DurationHMM(_ContinuousHMM):
             sys.exit("not exact duration")
             
         self.durationMap =  numpy.array(listDurations, dtype=int)
+        # DEBUG: 
         writeListToTextFile(self.durationMap, None , PATH_LOGS + '/durationMap') 
 
 #         STUB
@@ -63,7 +66,7 @@ class _DurationHMM(_ContinuousHMM):
 
     def getWaitLogLik(self, d, state):
         '''
-        return waiting pdf. uses gamma
+        return waiting pdf. uses normal distribution
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  

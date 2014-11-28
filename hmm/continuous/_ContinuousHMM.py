@@ -7,7 +7,6 @@ Created on Nov 12, 2012
 import numpy
 import os
 import sys
-from cookielib import logger
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
@@ -30,7 +29,8 @@ MINIMAL_PROB = sys.float_info.min
 
 
 # DEBUG
-PATH_LOGS='/Users/joro/Downloads/'
+# PATH_LOGS='/Users/joro/Downloads/'
+PATH_LOGS='.'
 
 PATH_BMAP = PATH_LOGS + '/bmap'
 
