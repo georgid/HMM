@@ -11,8 +11,7 @@ from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
-from hmm.continuous._ContinuousHMM import PATH_LOGS
-
+PATH_LOGS = '.'
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')

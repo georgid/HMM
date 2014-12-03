@@ -12,7 +12,7 @@ import numpy
 from numpy.core.numeric import Infinity
 import os
 
-from _ContinuousHMM import PATH_LOGS
+PATH_LOGS = '.'
 import _ContinuousHMM
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
@@ -62,10 +62,10 @@ class DurationPdf(object):
         if usePersistentProbs and os.path.exists(PATH_LOOKUP_DUR_TABLE): 
             self.lookupTableLogLiks = numpy.loadtxt(PATH_LOOKUP_DUR_TABLE)
             
-            # check
-            if self.lookupTableLogLiks.shape[0] != self.MAX_DUR:
-                sys.exit('not enough durations in loaded table. Max should be {}  delete table {} and generate them again'.format(self.MAX_DUR, PATH_LOOKUP_DUR_TABLE))
-            return   
+            # if table covers max dur
+            if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR:
+#                 sys.exit('not enough durations in loaded table. Max should be {}  delete table {} and generate them again'.format(self.MAX_DUR, PATH_LOOKUP_DUR_TABLE))
+                return   
         
         # construct
         else:
@@ -73,7 +73,8 @@ class DurationPdf(object):
 
             for currMaxDur in range(1,int(self.MAX_DUR)+1):
                 self._constructLogLikDistrib( currMaxDur)
-            writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 
+            if usePersistentProbs:
+                writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 
 
             
         

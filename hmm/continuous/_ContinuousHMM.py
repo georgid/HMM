@@ -28,11 +28,6 @@ from Utilz import writeListOfListToTextFile
 MINIMAL_PROB = sys.float_info.min
 
 
-# DEBUG
-# PATH_LOGS='/Users/joro/Downloads/'
-PATH_LOGS='.'
-
-PATH_BMAP = PATH_LOGS + '/bmap'
 
 class _ContinuousHMM(_BaseHMM):
     '''
@@ -86,9 +81,10 @@ class _ContinuousHMM(_BaseHMM):
         '''
         self.usePersistentFiles = False
     
-    def setPersitentFiles(self, usePersistentFiles):
+    def setPersitentFiles(self, usePersistentFiles, URI_noExt):
        
         self.usePersistentFiles =  usePersistentFiles
+        self.PATH_BMAP = URI_noExt + '.bmap'
         
     
     def reset(self,init_type='uniform'):
@@ -124,11 +120,14 @@ class _ContinuousHMM(_BaseHMM):
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
 #         return
     
-        if self.usePersistentFiles and os.path.exists(PATH_BMAP): 
-            self.B_map = numpy.loadtxt(PATH_BMAP)
-            if self.B_map.shape[1] != len(observations):
-                sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(PATH_BMAP))
-            return     
+        if self.usePersistentFiles and os.path.exists(self.PATH_BMAP): 
+            self.B_map = numpy.loadtxt(self.PATH_BMAP)
+            # check length
+            if self.B_map.shape[1] == len(observations):
+#                 sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(self.PATH_BMAP))
+            
+                self.B_map = numpy.log( self.B_map)
+                return     
         
        
     
@@ -147,9 +146,10 @@ class _ContinuousHMM(_BaseHMM):
              self.B_map[:,t] = _normalize(self.B_map[:,t])
              logging.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
              
+        if self.usePersistentFiles:        
+            writeListOfListToTextFile(self.B_map, None , self.PATH_BMAP)                 
+
         self.B_map = numpy.log( self.B_map)
-                 
-        writeListOfListToTextFile(self.B_map, None , PATH_BMAP)
                 
     """
     b[j][Ot] = sum(1...M)w[j][m]*b[j][m][Ot]

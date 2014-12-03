@@ -21,5 +21,10 @@ Open concerns:
 
 
 Duration-model extension 
-==============
+=========================
+
+Added fixes for
 * underflow due to multiplication of probabilities is handled by sum log(probs)
+
+TODO: 
+use _ContinuousHMM.usePersistentProbs to store persistently <fileName>.durationsMap to save time Now computed each time
