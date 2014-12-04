@@ -23,7 +23,9 @@ from Utilz import writeListOfListToTextFile, writeListToTextFile
 # PATH_LOGS='.'
 
 # DURATION_WEIGHT 
-ALPHA =  0.99
+ALPHA =  1.00
+
+# ALPHA =  0.99
 OVER_MAX_DUR_FACTOR = 1.3
 
 import logging
