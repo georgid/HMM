@@ -22,8 +22,7 @@ from Utilz import writeListOfListToTextFile, writeListToTextFile
 # PATH_LOGS='/Users/joro/Downloads/'
 # PATH_LOGS='.'
 
-# DURATION_WEIGHT 
-ALPHA =  1.00
+
 
 # ALPHA =  0.99
 OVER_MAX_DUR_FACTOR = 1.3
@@ -37,13 +36,15 @@ class _DurationHMM(_ContinuousHMM):
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
     
-    def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double,verbose=False):
+    def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
             '''
             See _ContinuousHMM constructor for more information
             '''
             _ContinuousHMM.__init__(self,n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
             
-                      
+    def setALPHA(self, ALPHA):
+        # DURATION_WEIGHT 
+        self.ALPHA = ALPHA
     
     def setDurForStates(self, listDurations):
         '''
@@ -264,7 +265,7 @@ class _DurationHMM(_ContinuousHMM):
         sumObsProb += self.B_map[currState, whichTime]
 #         print "\t\t sumObsProb= {}".format( sumObsProb)      
         
-        updateQuantity = currPhi + ALPHA * waitLogLik + (1-ALPHA)*sumObsProb
+        updateQuantity = currPhi + self.ALPHA * waitLogLik + (1-self.ALPHA)*sumObsProb
 #         updateQuantity = currPhi +  waitLogLik + sumObsProb
 #             print "\t UPDATE QUANT= {}".format(updateQuantity)  
 
