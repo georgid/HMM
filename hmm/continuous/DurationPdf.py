@@ -13,14 +13,14 @@ from numpy.core.numeric import Infinity
 import os
 
 PATH_LOGS = '.'
-import _ContinuousHMM
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
 
-parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
+parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
+
 from Utilz import writeListOfListToTextFile
 
 import logging
@@ -45,7 +45,9 @@ class DurationPdf(object):
         '''
         how much of a phoneme may be longer than its max_dur 
         '''
-        self.MAX_ALLOWED_DURATION_RATIO = 2
+        if distributionType == 1:
+            self.MAX_ALLOWED_DURATION_RATIO = 2
+            
         self.lookupTableLogLiks  = numpy.empty((MAX_DUR, self.MAX_ALLOWED_DURATION_RATIO * MAX_DUR + 1))
         self.lookupTableLogLiks.fill(-Infinity)
         
@@ -102,8 +104,9 @@ class DurationPdf(object):
             
             
             
-    def getWaitLogLik(self, d, maxDur):
+    def getWaitLogLik(self, d, scoreDur):
         '''
+        get lik for duration d for given score duration scoreDur for phoneme  
         used in _DurationHMM
         '''
         
@@ -114,15 +117,17 @@ class DurationPdf(object):
             sys.exit("d = 0 not implemented yet")
             return 
         # used in kappa. -Inf because we never want kappa to be selected if over max region of duration
-        elif d >= self.MAX_ALLOWED_DURATION_RATIO * maxDur + 1:
+        elif d >= self.MAX_ALLOWED_DURATION_RATIO * scoreDur + 1:
             return -Infinity
         else:
-            return self.lookupTableLogLiks[maxDur-1,d] 
+            if scoreDur > self.lookupTableLogLiks.shape[0]:
+                sys.exit("".format(self.lookupTableLogLiks.shape[0], scoreDur))
+            return self.lookupTableLogLiks[scoreDur-1,d] 
 #         set_printoptions(threshold='nan') 
     
     
 if __name__ == '__main__':
-    durPdf = DurationPdf(10)
+    durPdf = DurationPdf(30, True)
     
     print durPdf.lookupTableLogLiks
     

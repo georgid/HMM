@@ -72,9 +72,9 @@ class _DurationHMM(_ContinuousHMM):
         STUB
         '''  
         
-        DMaxCurrState = self.durationMap[state]
+        scoreDurCurrState = self.durationMap[state]
         
-        return self.durationPdf.getWaitLogLik(d, DMaxCurrState)
+        return self.durationPdf.getWaitLogLik(d, scoreDurCurrState)
          
     
     def _viterbiForcedDur(self, observations):
