@@ -63,20 +63,20 @@ class DurationPdf(object):
         PATH_LOOKUP_DUR_TABLE = PATH_LOGS + '/lookupTable'
         if usePersistentProbs and os.path.exists(PATH_LOOKUP_DUR_TABLE): 
             self.lookupTableLogLiks = numpy.loadtxt(PATH_LOOKUP_DUR_TABLE)
+            logger.info("reading lookuptable from {}".format( PATH_LOOKUP_DUR_TABLE ))
             
             # if table covers max dur
             if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR:
-#                 sys.exit('not enough durations in loaded table. Max should be {}  delete table {} and generate them again'.format(self.MAX_DUR, PATH_LOOKUP_DUR_TABLE))
                 return   
         
-        # construct
-        else:
-            logging.info("constructing duration Probability lookup Table...")
+        # otherwise construct
+      
+        logging.info("constructing duration Probability lookup Table...")
 
-            for currMaxDur in range(1,int(self.MAX_DUR)+1):
-                self._constructLogLikDistrib( currMaxDur)
-            if usePersistentProbs:
-                writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 
+        for currMaxDur in range(1,int(self.MAX_DUR)+1):
+            self._constructLogLikDistrib( currMaxDur)
+        if usePersistentProbs:
+            writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 
 
             
         
@@ -121,7 +121,7 @@ class DurationPdf(object):
             return -Infinity
         else:
             if scoreDur > self.lookupTableLogLiks.shape[0]:
-                sys.exit("loaded score duration {} is bigger than max in list of lookup score durations {}".format( scoreDur, self.lookupTableLogLiks.shape[0]))
+                sys.exit("current score duration {} is bigger than max in list of lookup score durations {}".format( scoreDur, self.lookupTableLogLiks.shape[0]))
             return self.lookupTableLogLiks[scoreDur-1,d] 
 #         set_printoptions(threshold='nan') 
     

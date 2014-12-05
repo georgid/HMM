@@ -52,7 +52,7 @@ class _DurationHMM(_ContinuousHMM):
         
         '''
         if len(listDurations) != self.n:
-            sys.exit("not exact duration")
+            sys.exit("count of fiven Durations diff from map")
             
         self.durationMap =  numpy.array(listDurations, dtype=int)
         # DEBUG: 
