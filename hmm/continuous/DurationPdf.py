@@ -121,7 +121,7 @@ class DurationPdf(object):
             return -Infinity
         else:
             if scoreDur > self.lookupTableLogLiks.shape[0]:
-                sys.exit("".format(self.lookupTableLogLiks.shape[0], scoreDur))
+                sys.exit("loaded score duration {} is bigger than max in list of lookup score durations {}".format( scoreDur, self.lookupTableLogLiks.shape[0]))
             return self.lookupTableLogLiks[scoreDur-1,d] 
 #         set_printoptions(threshold='nan') 
     
