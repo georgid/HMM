@@ -12,7 +12,7 @@ import numpy
 from numpy.core.numeric import Infinity
 import os
 
-PATH_LOGS = '.'
+PATH_LOGS = os.getcwdu()
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -67,7 +67,10 @@ class DurationPdf(object):
             
             # if table covers max dur
             if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR:
-                return   
+                return 
+            else:
+                self.lookupTableLogLiks  = numpy.empty((self.MAX_DUR, self.MAX_ALLOWED_DURATION_RATIO * self.MAX_DUR + 1))
+                self.lookupTableLogLiks.fill(-Infinity)      
         
         # otherwise construct
       
