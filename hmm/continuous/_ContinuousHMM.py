@@ -84,7 +84,8 @@ class _ContinuousHMM(_BaseHMM):
     def setPersitentFiles(self, usePersistentFiles, URI_noExt):
        
         self.usePersistentFiles =  usePersistentFiles
-        self.PATH_BMAP = URI_noExt + '.dur_bmap'
+        #self.PATH_BMAP = URI_noExt + '.dur_bmap'
+        self.PATH_BMAP = URI_noExt + '.dur_3st_bmap'
         
     
     def reset(self,init_type='uniform'):
