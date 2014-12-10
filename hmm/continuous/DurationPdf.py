@@ -61,9 +61,10 @@ class DurationPdf(object):
     def _constructLogLiksTable(self, usePersistentProbs):
         
         PATH_LOOKUP_DUR_TABLE = PATH_LOGS + '/lookupTable'
+        logger.info("path lookup table: " +  PATH_LOOKUP_DUR_TABLE)
         if usePersistentProbs and os.path.exists(PATH_LOOKUP_DUR_TABLE): 
             self.lookupTableLogLiks = numpy.loadtxt(PATH_LOOKUP_DUR_TABLE)
-            logger.info("reading lookuptable from {}".format( PATH_LOOKUP_DUR_TABLE ))
+            logger.info("reading lookup table from {}".format( PATH_LOOKUP_DUR_TABLE ))
             
             # if table covers max dur
             if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR:

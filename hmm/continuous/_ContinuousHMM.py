@@ -78,7 +78,7 @@ class _ContinuousHMM(_BaseHMM):
         self.reset(init_type=init_type)
         
         '''
-        flag to load some decoding info from cached files, for example bMap and durationLookup table  
+        flag to load some decoding info from cached files, for example bMap and durationLookup table . 
         makes decoding faster 
         '''
         self.usePersistentFiles = False
