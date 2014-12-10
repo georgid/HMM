@@ -27,6 +27,8 @@ from Utilz import writeListOfListToTextFile
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.WARNING)
 
 
 class _ContinuousHMM(_BaseHMM):
@@ -81,12 +83,11 @@ class _ContinuousHMM(_BaseHMM):
         '''
         self.usePersistentFiles = False
     
-    def setPersitentFiles(self, usePersistentFiles, URI_noExt):
+    def setPersitentFiles(self, usePersistentFiles, URI_bmap):
        
         self.usePersistentFiles =  usePersistentFiles
-        #self.PATH_BMAP = URI_noExt + '.dur_bmap'
-        self.PATH_BMAP = URI_noExt + '.dur_3st_bmap'
-        self.PATH_BMAP = URI_noExt + '.dur_3st__eq_bmap'
+        self.PATH_BMAP = URI_bmap
+
         
     
     def reset(self,init_type='uniform'):
@@ -122,23 +123,26 @@ class _ContinuousHMM(_BaseHMM):
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
 #         return
     
-        if self.usePersistentFiles and os.path.exists(self.PATH_BMAP): 
+        if self.usePersistentFiles and os.path.exists(self.PATH_BMAP):
+            
+            logger.info("loading probs all observations from ".format(self.PATH_BMAP))
+ 
             self.B_map = numpy.loadtxt(self.PATH_BMAP)
             # check length
-            if self.B_map.shape[1] == len(observations):
+            if self.B_map.shape[1]  == len(observations)  and self.B_map.shape[0] == self.n:
 #                 sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(self.PATH_BMAP))
             
                 self.B_map = numpy.log( self.B_map)
                 return     
-        
+            else:
+                logger.warning("file {} found, but has not the expected num of states {} or observations {}".format(self.PATH_BMAP, self.n, len(observations)) )
        
-    
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
                 lik = self._calcbjt(j, t, observations[t])
                 if lik == 0: 
-                    logging.warning("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
+                    logger.warning("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
                     lik = MINIMAL_PROB
                 self.B_map[j,t] = lik
         self._normalizeBByMax()
@@ -146,7 +150,7 @@ class _ContinuousHMM(_BaseHMM):
         # normalize over states
         for t in xrange(len(observations)):
              self.B_map[:,t] = _normalize(self.B_map[:,t])
-             logging.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
+#              logger.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
              
         if self.usePersistentFiles:        
             writeListOfListToTextFile(self.B_map, None , self.PATH_BMAP)                 

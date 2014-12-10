@@ -85,7 +85,6 @@ class _DurationHMM(_ContinuousHMM):
         except NameError:
             sys.exit(NameError.message)
         
-        print "loading probs all observations"
         self._mapB(observations)
         
         print "decoding..."
