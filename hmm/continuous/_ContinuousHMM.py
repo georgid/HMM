@@ -28,7 +28,7 @@ from Utilz import writeListOfListToTextFile
 MINIMAL_PROB = sys.float_info.min
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.DEBUG)
 
 
 class _ContinuousHMM(_BaseHMM):
@@ -121,7 +121,7 @@ class _ContinuousHMM(_BaseHMM):
         log precomputed
         '''   
 #         return
-    
+        
         if self.usePersistentFiles and os.path.exists(self.PATH_BMAP):
             
             logger.info("loading probs all observations from ".format(self.PATH_BMAP))
@@ -140,13 +140,17 @@ class _ContinuousHMM(_BaseHMM):
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
+                logger.debug("at calcbjt at state {} and time {}...\n".format(j, t))
                 lik = self._calcbjt(j, t, observations[t])
                 if lik == 0: 
                     logger.warning("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
                     lik = MINIMAL_PROB
                 self.B_map[j,t] = lik
+
+        logger.debug("normalizing ...")
         self._normalizeBByMax()
         
+
         # normalize over states
         for t in xrange(len(observations)):
              self.B_map[:,t] = _normalize(self.B_map[:,t])
@@ -168,6 +172,7 @@ class _ContinuousHMM(_BaseHMM):
         '''
         Helper method to compute Bj(Ot) = sum(1...M){Wjm*Bjm(Ot)}
         '''
+        
         bjt = 0
         for m in xrange(self.m):
             self.Bmix_map[j][m][t] = self._pdf(Ot, self.means[j][m], self.covars[j][m])
