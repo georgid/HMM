@@ -3,23 +3,35 @@ _DurationHMM
 extends continuous._ContinuousHMM
 tackles the explicit-duration decoding as explained in Chen, Ruofeng, et al. "CHORD RECOGNITION USING DURATION-EXPLICIT HIDDEN MARKOV MODELS."
 
+fields: 
+self.silDurationPdf - distribution for beginning and end 'sil'  states
+self.durationMap -  durations in frames assigned based on score. 
+
+
+Methods: 
 durations (in #frames) are set for model from a list
 hmm.continuous._DurationHMM._DurationHMM.setDurForStates
 
-durations are get from self.durationPdf in 
+
 hmm.continuous._DurationHMM._DurationHMM.getWaitLogLik 
+returns duration liklihoods from self.durationPdf 
 
  Currently only forced alignment implemented:
  _viterbiForcedDur()
   
+ hmm.continuous._DurationHMM._DurationHMM._calcUpdateQuantity
+ handles the recursive update rule
  
  
 DurationPdf
 ================== 
-likelihoods for duration distributions with different durations are precomputed 
+likelihoods for duration distributions with different durations are precomputed and stored persistently  in a file lookupTable 
 has currently only normal distribution 
  
   
+ExpDurationPdf
+------------------
+exponential distribution based on the wait prob of model
 
  
  _ContinousHMM

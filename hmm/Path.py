@@ -9,16 +9,14 @@ import sys
 
 class Path(object):
     '''
-    classdocs
+    Result path postprocessing
     '''
-    
-    
 
     def __init__(self, chiBackPointers, psiBackPointer):
         '''
         Constructor
         '''
-        # DEBUG: 
+        # detected durations
         self.durations = []
         # ending time for each state
         self.endingTimes = []

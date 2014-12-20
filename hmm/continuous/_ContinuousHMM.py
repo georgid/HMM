@@ -120,7 +120,6 @@ class _ContinuousHMM(_BaseHMM):
         - self.Bmix_map - computesand maps Bjm(Ot) to Bjm(t).
         log precomputed
         '''   
-        self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
 #         return
     
         if self.usePersistentFiles and os.path.exists(self.PATH_BMAP):
@@ -137,6 +136,7 @@ class _ContinuousHMM(_BaseHMM):
             else:
                 logger.warning("file {} found, but has not the expected num of states {} or observations {}".format(self.PATH_BMAP, self.n, len(observations)) )
        
+        self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):

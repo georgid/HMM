@@ -36,24 +36,28 @@ class DurationPdf(object):
         
         # 1 - normal. 
         # 2 - gamma TODO: implement
+        # 3 - exponential
         self.distributionType = distributionType
         
         '''
         maxDur x currDur lookupTable of probs
         '''
-        self.MAX_DUR = MAX_DUR
+        self.MAX_DUR_INFRAMES = MAX_DUR
         '''
-        how much of a phoneme may be longer than its max_dur 
+        how much of a phoneme may be longer than its score-assigned max_dur 
         '''
+        self.MAX_ALLOWED_DURATION_RATIO = 1
+        
         if distributionType == 1:
             self.MAX_ALLOWED_DURATION_RATIO = 2
             
         self.lookupTableLogLiks  = numpy.empty((MAX_DUR, self.MAX_ALLOWED_DURATION_RATIO * MAX_DUR + 1))
         self.lookupTableLogLiks.fill(-Infinity)
         
-        self.minVal = norm.ppf(0.01)
-        self.maxVal= norm.ppf(0.99)
-        
+        if distributionType == 1:
+            self.minVal = norm.ppf(0.01)
+            self.maxVal= norm.ppf(0.99)
+                    
         self._constructLogLiksTable(usePersistentProbs)
        
    
@@ -67,17 +71,17 @@ class DurationPdf(object):
             logger.info("reading lookup table from {}".format( PATH_LOOKUP_DUR_TABLE ))
             
             # if table covers max dur
-            if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR:
+            if self.lookupTableLogLiks.shape[0] >= self.MAX_DUR_INFRAMES:
                 return 
             else:
-                self.lookupTableLogLiks  = numpy.empty((self.MAX_DUR, self.MAX_ALLOWED_DURATION_RATIO * self.MAX_DUR + 1))
+                self.lookupTableLogLiks  = numpy.empty((self.MAX_DUR_INFRAMES, self.MAX_ALLOWED_DURATION_RATIO * self.MAX_DUR_INFRAMES + 1))
                 self.lookupTableLogLiks.fill(-Infinity)      
         
         # otherwise construct
       
         logging.info("constructing duration Probability lookup Table...")
 
-        for currMaxDur in range(1,int(self.MAX_DUR)+1):
+        for currMaxDur in range(1,int(self.MAX_DUR_INFRAMES)+1):
             self._constructLogLikDistrib( currMaxDur)
         if usePersistentProbs:
             writeListOfListToTextFile(self.lookupTableLogLiks, None ,  PATH_LOOKUP_DUR_TABLE) 

@@ -11,7 +11,9 @@ from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
-PATH_LOGS = '.'
+from hmm.continuous.ExpDurationPdf import ExpDurationPdf
+from hmm.continuous._ContinuousHMM import logger
+
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
@@ -20,16 +22,16 @@ if pathUtils not in sys.path: sys.path.append(pathUtils )
 from Utilz import writeListOfListToTextFile, writeListToTextFile
 
 # PATH_LOGS='/Users/joro/Downloads/'
-# PATH_LOGS='.'
+PATH_LOGS='.'
 
 
 
 # ALPHA =  0.99
 OVER_MAX_DUR_FACTOR = 1.3
 
-import logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.WARNING)
+# import logging
+# logger = logging.getLogger(__name__)
+# logger.setLevel(logging.INFO)
 
 class _DurationHMM(_ContinuousHMM):
     '''
@@ -45,6 +47,8 @@ class _DurationHMM(_ContinuousHMM):
     def setALPHA(self, ALPHA):
         # DURATION_WEIGHT 
         self.ALPHA = ALPHA
+    def setWaitProbSilState(self, waitProbSil):
+        self.waitProbSil = waitProbSil
     
     def setDurForStates(self, listDurations):
         '''
@@ -55,6 +59,7 @@ class _DurationHMM(_ContinuousHMM):
         if len(listDurations) != self.n:
             sys.exit("count of fiven Durations diff from map")
             
+        # set map of durations 
         self.durationMap =  numpy.array(listDurations, dtype=int)
         # DEBUG: 
         writeListToTextFile(self.durationMap, None , PATH_LOGS + '/durationMap') 
@@ -62,9 +67,9 @@ class _DurationHMM(_ContinuousHMM):
 #         STUB
 #         self.durationMap =  numpy.arange(1,self.n+1)
        
-        # set duration lookup table
-        self.MAX_DUR = int(numpy.amax(self.durationMap))
-        self.durationPdf = DurationPdf(self.MAX_DUR, self.usePersistentFiles)
+        self.MAX_DUR_INFRAMES = int(numpy.amax(self.durationMap))
+        self.durationPdf = DurationPdf(self.MAX_DUR_INFRAMES, self.usePersistentFiles)
+        self.silDurationPdf = ExpDurationPdf(self.waitProbSil)
 
     def getWaitLogLik(self, d, state):
         '''
@@ -72,6 +77,9 @@ class _DurationHMM(_ContinuousHMM):
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  
+        # HARD CODE 1st and last state to be sil
+        if state == 0 or state == self.n - 1:
+            return self.silDurationPdf.getWaitLogLik(d)
         
         scoreDurCurrState = self.durationMap[state]
         
@@ -98,13 +106,13 @@ class _DurationHMM(_ContinuousHMM):
         self.psi = numpy.empty((len(observations),self.n),dtype=self.precision)
         self.psi.fill(-1)
         
-        # init. t< MAX_DUR
+        # init. t< MAX_DUR_INFRAMES
         self._initBeginingPhis(len(observations))
         
-        if (self.MAX_DUR>= len(observations)):
-            sys.exit("MAX_Dur {} of a state is more than total number of obesrvations {}. Unable to decode".format(self.MAX_DUR, len(observations)) )
+        if (self.MAX_DUR_INFRAMES>= len(observations)):
+            sys.exit("MAX_Dur {} of a state is more than total number of obesrvations {}. Unable to decode".format(self.MAX_DUR_INFRAMES, len(observations)) )
         
-        for t in range(self.MAX_DUR,len(observations)):
+        for t in range(self.MAX_DUR_INFRAMES,len(observations)):
             for currState in xrange(self.n):
                 self._calcCurrStatePhi(t, currState) # get max duration quantities
         
@@ -118,7 +126,7 @@ class _DurationHMM(_ContinuousHMM):
         '''
         calc. quantities in recursion  equation
         '''
-        logger.info("at time t={}".format(t) )          
+        logger.debug("at time t={}".format(t) )          
 
         currMaxDur = self.durationMap[currState]
         # take 30% more from dur from score 
@@ -137,7 +145,7 @@ class _DurationHMM(_ContinuousHMM):
            
     def _initBeginingPhis(self, lenObservations):
         '''
-        initi phis when t < self.MAX_DUR
+        initi phis when t < self.MAX_DUR_INFRAMES
         '''
         self._initKappas()
         
@@ -150,13 +158,14 @@ class _DurationHMM(_ContinuousHMM):
 #         for currState in range(self.n): self.phi[0,currState] = self.kappas[currState,0]
         self.phi[0,:] = self.kappas[0,:]
         
-        # init first currState. done to allow self.getMaxPhi  to access prev. currState
+        # init first state = kappa (done to allow self.getMaxPhi  to access prev. currState)
         self.phi[:len(self.kappas[:,0]),0] = self.kappas[:,0]        
         
         # select max (kappa and phi_star)
       
-        for t in  range(1,int(self.MAX_DUR)):
-            logger.info("at time t={}".format(t) )          
+        for t in  range(1,int(self.MAX_DUR_INFRAMES)):
+            logger.debug("at time t={}".format(t) )          
+            # phi start makes sence only from second state 
             for currState in range(1, self.n): 
                 
                 currMaxDur = self.durationMap[currState]
@@ -187,7 +196,7 @@ class _DurationHMM(_ContinuousHMM):
         WITH LogLik 
         '''
         print 'init kappas...'
-        self.kappas = numpy.empty((self.MAX_DUR,self.n), dtype=self.precision)
+        self.kappas = numpy.empty((self.MAX_DUR_INFRAMES,self.n), dtype=self.precision)
         # if some kappa[t, state] = -INFINITY and phi[t,state] = -INFINITY, no initialization is possilbe
         self.kappas.fill(numpy.log(MINIMAL_PROB))
         
