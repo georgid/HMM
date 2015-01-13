@@ -125,7 +125,7 @@ class _DurationHMM(_ContinuousHMM):
         '''
         calc. quantities in recursion  equation
         '''
-        logger.debug("at time t={}".format(t) )          
+        self.logger.debug("at time t={}".format(t) )          
 
         currMaxDur = self.durationMap[currState]
         # take 30% more from dur from score 
@@ -163,7 +163,7 @@ class _DurationHMM(_ContinuousHMM):
         # select max (kappa and phi_star)
       
         for t in  range(1,int(self.MAX_DUR_INFRAMES)):
-            logger.debug("at time t={}".format(t) )          
+            self.logger.debug("at time t={}".format(t) )          
             # phi start makes sence only from second state 
             for currState in range(1, self.n): 
                 
@@ -179,7 +179,7 @@ class _DurationHMM(_ContinuousHMM):
                     self.psi[t,currState] = fromState
                     self.chi[t,currState] = maxDurIndex
                 else:
-                    logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
+                    self.logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
                     self.phi[t, currState] = self.kappas[t, currState]
                     # kappas mean still at beginning state
                     self.psi[t,currState] = currState
