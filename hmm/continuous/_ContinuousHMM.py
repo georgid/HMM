@@ -11,7 +11,6 @@ import sys
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
 hmmDir = os.path.join(parentDir, 'HMM/hmm')
-print hmmDir
 if hmmDir not in sys.path: sys.path.append(parentDir)
 
 from hmm._BaseHMM import _BaseHMM
@@ -29,6 +28,7 @@ MINIMAL_PROB = sys.float_info.min
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.WARNING)
 
 
 class _ContinuousHMM(_BaseHMM):
