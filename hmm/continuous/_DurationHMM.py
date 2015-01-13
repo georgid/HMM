@@ -12,8 +12,7 @@ from numpy.core.numeric import Infinity
 from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
 from hmm.continuous.ExpDurationPdf import ExpDurationPdf
-from hmm.continuous._ContinuousHMM import logger
-import logging
+
 
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
@@ -42,8 +41,6 @@ class _DurationHMM(_ContinuousHMM):
             See _ContinuousHMM constructor for more information
             '''
             _ContinuousHMM.__init__(self,n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
-            self.logger = logging.getLogger(__name__)
-            logger.setLevel(logging.INFO)
 
                 
     def setALPHA(self, ALPHA):

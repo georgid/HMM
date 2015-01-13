@@ -7,6 +7,7 @@ Created on Nov 12, 2012
 import numpy
 import os
 import sys
+import logging
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
@@ -15,7 +16,6 @@ if hmmDir not in sys.path: sys.path.append(parentDir)
 
 from hmm._BaseHMM import _BaseHMM
 
-import logging
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
@@ -26,9 +26,6 @@ from Utilz import writeListOfListToTextFile
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-logger.setLevel(logging.WARNING)
 
 
 class _ContinuousHMM(_BaseHMM):
@@ -82,6 +79,8 @@ class _ContinuousHMM(_BaseHMM):
         makes decoding faster 
         '''
         self.usePersistentFiles = False
+        self.logger = logging.getLogger(__name__)
+
     
     def setPersitentFiles(self, usePersistentFiles, URI_bmap):
        
@@ -124,7 +123,7 @@ class _ContinuousHMM(_BaseHMM):
         
         if self.usePersistentFiles and os.path.exists(self.PATH_BMAP):
             
-            logger.info("loading probs all observations from ".format(self.PATH_BMAP))
+            self.logger.info("loading probs all observations from ".format(self.PATH_BMAP))
  
             self.B_map = numpy.loadtxt(self.PATH_BMAP)
             # check length
@@ -134,27 +133,27 @@ class _ContinuousHMM(_BaseHMM):
                 self.B_map = numpy.log( self.B_map)
                 return     
             else:
-                logger.warning("file {} found, but has not the expected num of states {} or observations {}".format(self.PATH_BMAP, self.n, len(observations)) )
+                self.logger.info("file {} found, but has not the expected num of states {} or observations {}".format(self.PATH_BMAP, self.n, len(observations)) )
        
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
         for j in xrange(self.n):
             for t in xrange(len(observations)):
-                logger.debug("at calcbjt at state {} and time {}...\n".format(j, t))
+                self.logger.debug("at calcbjt at state {} and time {}...\n".format(j, t))
                 lik = self._calcbjt(j, t, observations[t])
                 if lik == 0: 
-                    logger.warning("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
+                    self.logger.debug("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
                     lik = MINIMAL_PROB
                 self.B_map[j,t] = lik
 
-        logger.debug("normalizing ...")
+        self.logger.debug("normalizing ...")
         self._normalizeBByMax()
         
 
         # normalize over states
         for t in xrange(len(observations)):
              self.B_map[:,t] = _normalize(self.B_map[:,t])
-#              logger.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
+#              self.logger.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
              
         if self.usePersistentFiles:        
             writeListOfListToTextFile(self.B_map, None , self.PATH_BMAP)                 
