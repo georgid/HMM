@@ -123,7 +123,7 @@ class _ContinuousHMM(_BaseHMM):
         
         if self.usePersistentFiles and os.path.exists(self.PATH_BMAP):
             
-            self.logger.info("loading probs all observations from ".format(self.PATH_BMAP))
+            self.logger.info("loading probs all observations from {}".format(self.PATH_BMAP))
  
             self.B_map = numpy.loadtxt(self.PATH_BMAP)
             # check length
