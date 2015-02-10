@@ -76,7 +76,7 @@ class _DurationHMM(_ContinuousHMM):
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  
-        # HARD CODE 1st and last state to be sil
+        # HARD CODE get different prob. ditrib. assume 1st and last state are sil
         if state == 0 or state == self.n - 1:
             return self.silDurationPdf.getWaitLogLik(d)
         
