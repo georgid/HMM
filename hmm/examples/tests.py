@@ -48,30 +48,7 @@ def test_simple():
     print "covars", gmmhmm.covars
     
 def test_rand():
-    n = 5
-    m = 4
-    d = 2
-    atmp = numpy.random.random_sample((n, n))
-    row_sums = atmp.sum(axis=1)
-    a = numpy.array(atmp / row_sums[:, numpy.newaxis], dtype=numpy.double)    
-
-    wtmp = numpy.random.random_sample((n, m))
-    row_sums = wtmp.sum(axis=1)
-    w = numpy.array(wtmp / row_sums[:, numpy.newaxis], dtype=numpy.double)
-    
-    means = numpy.array((0.6 * numpy.random.random_sample((n, m, d)) - 0.3), dtype=numpy.double)
-    covars = numpy.zeros( (n,m,d,d) )
-    
-    for i in xrange(n):
-        for j in xrange(m):
-            for k in xrange(d):
-                covars[i][j][k][k] = 1    
-    
-    pitmp = numpy.random.random_sample((n))
-    pi = numpy.array(pitmp / sum(pitmp), dtype=numpy.double)
-
-    gmmhmm = GMHMM(n,m,d,a,means,covars,w,pi,init_type='user',verbose=True)
-    
+    gmmhmm,d = makeTestDurationHMM()
     obs = numpy.array((0.6 * numpy.random.random_sample((40,d)) - 0.3), dtype=numpy.double)
     
     print "Doing Baum-welch"
@@ -104,8 +81,60 @@ def test_discrete():
     print "Pi",hmm2.pi
     print "A",hmm2.A
     print "B", hmm2.B
+
+
+def makeTestDurationHMM():
+    '''
+    generate some random model. 
+    '''
+    n = 4
+    m = 4
+    d = 2
+    atmp = numpy.random.random_sample((n, n))
+    row_sums = atmp.sum(axis=1)
+    a = numpy.array(atmp / row_sums[:, numpy.newaxis], dtype=numpy.double)    
+
+    wtmp = numpy.random.random_sample((n, m))
+    row_sums = wtmp.sum(axis=1)
+    w = numpy.array(wtmp / row_sums[:, numpy.newaxis], dtype=numpy.double)
     
+    means = numpy.array((0.6 * numpy.random.random_sample((n, m, d)) - 0.3), dtype=numpy.double)
+    covars = numpy.zeros( (n,m,d,d) )
+    
+    for i in xrange(n):
+        for j in xrange(m):
+            for k in xrange(d):
+                covars[i][j][k][k] = 1    
+    
+    pitmp = numpy.random.random_sample((n))
+    pi = numpy.array(pitmp / sum(pitmp), dtype=numpy.double)
+
+    gmmhmm = GMHMM(n,m,d,a,means,covars,w,pi,init_type='user',verbose=True)
+    return    gmmhmm, d  
+
+def testRandDurationHMM():
+    durGMMhmm,d = makeTestDurationHMM()
+    durGMMhmm.setALPHA(0.97)
+    durGMMhmm.setWaitProbSilState(0.9)
+    
+    listDurations = [70,30,20,10];
+    durGMMhmm.setDurForStates(listDurations)
+    
+    
+    observationFeatures = numpy.array((0.6 * numpy.random.random_sample((300,d)) - 0.3), dtype=numpy.double)
+    
+    durGMMhmm.initDecodingParameters(observationFeatures)
+    chiBackPointer, psiBackPointer = durGMMhmm._viterbiForcedDur(observationFeatures)
+
+    
+    # test computePhiStar
+    currState = 1
+    currTime = 25
+    phiStar, fromState, maxDurIndex = durGMMhmm.computePhiStar(currTime, currState)
+    print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
+
     
 #test_simple()
-test_rand()
+# test_rand()
 #test_discrete()
+testRandDurationHMM()

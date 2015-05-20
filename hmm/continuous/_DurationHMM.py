@@ -10,9 +10,12 @@ import sys
 from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
-from hmm.continuous.DurationPdf  import DurationPdf, MINIMAL_PROB
+from hmm.continuous.DurationPdf  import DurationPdf, \
+    deviationInSec, NUMFRAMESPERSEC
 from hmm.continuous.ExpDurationPdf import ExpDurationPdf
 
+# to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
+MINIMAL_PROB = sys.float_info.min
 
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir ) ) 
@@ -27,7 +30,7 @@ PATH_LOGS='.'
 
 
 # ALPHA =  0.99
-OVER_MAX_DUR_FACTOR = 1.3
+# OVER_MAX_DUR_FACTOR = 1.3
 
 
 
@@ -46,6 +49,7 @@ class _DurationHMM(_ContinuousHMM):
     def setALPHA(self, ALPHA):
         # DURATION_WEIGHT 
         self.ALPHA = ALPHA
+    
     def setWaitProbSilState(self, waitProbSil):
         self.waitProbSil = waitProbSil
     
@@ -56,7 +60,7 @@ class _DurationHMM(_ContinuousHMM):
         
         '''
         if len(listDurations) != self.n:
-            sys.exit("count of fiven Durations diff from map")
+            sys.exit("#Durations from list = {}, whereas #states={}".format(len(listDurations), self.n ))
             
         # set map of durations 
         self.durationMap =  numpy.array(listDurations, dtype=int)
@@ -66,8 +70,10 @@ class _DurationHMM(_ContinuousHMM):
 #         STUB
 #         self.durationMap =  numpy.arange(1,self.n+1)
        
-        self.MAX_DUR_INFRAMES = int(numpy.amax(self.durationMap))
-        self.durationPdf = DurationPdf(self.MAX_DUR_INFRAMES, self.usePersistentFiles)
+#         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
+        self.durationPdf = DurationPdf()
+        self.R_MAX = int( self.durationPdf.getEndDur(numpy.amax(self.durationMap) ) )
+
         self.silDurationPdf = ExpDurationPdf(self.waitProbSil)
 
     def getWaitLogLik(self, d, state):
@@ -87,31 +93,10 @@ class _DurationHMM(_ContinuousHMM):
     
     def _viterbiForcedDur(self, observations):
         # sanity check. make sure durations are init from score
-        try: 
-            self.durationMap
-        except NameError:
-            sys.exit(NameError.message)
-        
-        self._mapB(observations)
+      
         
         print "decoding..."
-        
-       
-        # backpointer: how much duration waited in curr state  
-        self.chi = numpy.empty((len(observations),self.n),dtype=self.precision)
-        self.chi.fill(-1)
-        
-         # backpointer: prev. state  
-        self.psi = numpy.empty((len(observations),self.n),dtype=self.precision)
-        self.psi.fill(-1)
-        
-        # init. t< MAX_DUR_INFRAMES
-        self._initBeginingPhis(len(observations))
-        
-        if (self.MAX_DUR_INFRAMES>= len(observations)):
-            sys.exit("MAX_Dur {} of a state is more than total number of obesrvations {}. Unable to decode".format(self.MAX_DUR_INFRAMES, len(observations)) )
-        
-        for t in range(self.MAX_DUR_INFRAMES,len(observations)):
+        for t in range(self.R_MAX,len(observations)):                          
             for currState in xrange(self.n):
                 self._calcCurrStatePhi(t, currState) # get max duration quantities
         
@@ -121,17 +106,45 @@ class _DurationHMM(_ContinuousHMM):
         return  self.chi, self.psi
     
     
+    def initDecodingParameters(self, observations):
+        '''
+        helper method to init all params
+        '''
+        lenObservations = len(observations)
+        try: 
+            self.durationMap
+        except NameError:
+            sys.exit(NameError.message)
+        
+        self._mapB(observations)
+        
+        # backpointer: how much duration waited in curr state
+        self.chi = numpy.empty((lenObservations, self.n), dtype=self.precision)
+        self.chi.fill(-1)
+       
+        # backpointer: prev. state
+        self.psi = numpy.empty((lenObservations, self.n), dtype=self.precision)
+        self.psi.fill(-1)
+   
+        # init. t< R_MAX
+        self._initBeginingPhis(lenObservations)
+        if (self.R_MAX >= lenObservations):
+            sys.exit("MAX_Dur {} of a state is more than total number of obesrvations {}. Unable to decode".format(self.R_MAX, lenObservations))
+    
+    
     def _calcCurrStatePhi(self,  t, currState):
         '''
         calc. quantities in recursion  equation
         '''
         self.logger.debug("at time t={}".format(t) )          
 
-        currMaxDur = self.durationMap[currState]
+        currRefDur = self.durationMap[currState]
         # take 30% more from dur from score 
-        currMaxDur = int(round(OVER_MAX_DUR_FACTOR * currMaxDur))
+#         currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
        
-        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, currMaxDur)
+        minDur = self.durationPdf.getStartDur(currRefDur)
+        endDur =  self.durationPdf.getEndDur(currRefDur)
+        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
         
         
                 
@@ -142,11 +155,34 @@ class _DurationHMM(_ContinuousHMM):
         self.chi[t][currState] = maxDurIndex
                 
            
+
+    def computePhiStar(self, t, currState):
+        '''
+        boundaries check for minDur and endDur makes PhiStar different from phi 
+        '''
+        
+        fromState =-1
+        maxDurIndex = -1
+        
+        currRefDur = self.durationMap[currState] # take 30% more from dur from score
+    #                 currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
+        
+        ####### boundaries check
+        minDur = self.durationPdf.getStartDur(currRefDur)
+        if t <= minDur: # min duration is before beginning of audio 
+            phiStar = -Infinity
+        else:
+            currReducedMaxDur = min(t, self.durationPdf.getEndDur(currRefDur))
+            phiStar, fromState, maxDurIndex = self.getMaxPhi(t, currState, minDur, currReducedMaxDur)
+        return phiStar, fromState, maxDurIndex
+    
+
     def _initBeginingPhis(self, lenObservations):
         '''
-        initi phis when t < self.MAX_DUR_INFRAMES
+        init phis when t < self.R_MAX
         '''
-        self._initKappas()
+        
+        self._initKappas(lenObservations)
         
          # for convenience put as class vars
         self.phi = numpy.empty((lenObservations,self.n),dtype=self.precision)
@@ -160,23 +196,19 @@ class _DurationHMM(_ContinuousHMM):
         # init first state = kappa (done to allow self.getMaxPhi  to access prev. currState)
         self.phi[:len(self.kappas[:,0]),0] = self.kappas[:,0]        
         
-        # select max (kappa and phi_star)
       
-        for t in  range(1,int(self.MAX_DUR_INFRAMES)):
+        # select bigger (kappa and phi_star)
+        for t in  range(1,int(self.R_MAX)):
             self.logger.debug("at time t={}".format(t) )          
             # phi start makes sence only from second state 
             for currState in range(1, self.n): 
                 
-                currMaxDur = self.durationMap[currState]
-                # take 30% more from dur from score 
-                currMaxDur = int(round(OVER_MAX_DUR_FACTOR * currMaxDur))
+                phiStar, fromState, maxDurIndex = self.computePhiStar(t, currState)
                 
-                currReducedMaxDur = min(t, currMaxDur)
-                phiStar, fromState,  maxDurIndex  =  self.getMaxPhi(t, currState, currReducedMaxDur)
-                
+                # take bigger : eq:deltaStarOrKappa
                 if  phiStar > self.kappas[t,currState] :
                     self.phi[t,currState] = phiStar
-                    self.psi[t,currState] = fromState
+                    self.psi[t,currState] = fromState 
                     self.chi[t,currState] = maxDurIndex
                 else:
                     self.logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
@@ -189,30 +221,33 @@ class _DurationHMM(_ContinuousHMM):
         writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi_init') 
 
         
-    def _initKappas(self):
+    def _initKappas(self, lenObservations):
         '''
         kappas[t][s] - starting and staying at time t in same currState s.
         WITH LogLik 
         '''
+        if lenObservations <= self.R_MAX:
+            sys.exit("observations are only {}, R_max = {}. not able to run initialization. Increase size of observations".format(lenObservations,self.R_MAX)) 
+        
         print 'init kappas...'
-        self.kappas = numpy.empty((self.MAX_DUR_INFRAMES,self.n), dtype=self.precision)
-        # if some kappa[t, state] = -INFINITY and phi[t,state] = -INFINITY, no initialization is possilbe
+        self.kappas = numpy.empty((self.R_MAX,self.n), dtype=self.precision)
+        # if some kappa[t, state] = -INFINITY and phi[t,state] = -INFINITY, no initialization is possilbe (e.g. not possible to choose max btw kappa and phi)
         self.kappas.fill(numpy.log(MINIMAL_PROB))
         
         for currState in range(self.n):
             sumObsProb = 0
-            currDmax = self.durationMap[currState]
+            currRefMax = self.durationPdf.getEndDur( self.durationMap[currState])
             currLogPi = numpy.log(self.pi[currState])
             
-            for d in range(1,int(currDmax)+1):
+            for t in range(1,int(currRefMax)+1):
                                 
-                updateQuantity, sumObsProb = self._calcUpdateQuantity(d-1, d, currState, 0, sumObsProb)
+                updateQuantity, sumObsProb = self._calcUpdateQuantity(t-1, t, currState, 0, sumObsProb)
                 
-                self.kappas[d-1,currState] = currLogPi + updateQuantity
+                self.kappas[t-1,currState] = currLogPi + updateQuantity
                 
-                 #sanity check
-                if self.kappas[d-1,currState] == 0:
-                     print "underflow error at time {}, currState {}".format(d-1, currState)
+                 #sanity check. for debug
+                if self.kappas[t-1,currState] == 0:
+                     print "underflow error at time {}, currState {}".format(t-1, currState)
                 
                 
         writeListOfListToTextFile(self.kappas, None , PATH_LOGS + '/kappas') 
@@ -221,7 +256,7 @@ class _DurationHMM(_ContinuousHMM):
   
         
         
-    def getMaxPhi(self, t, currState, maxPossibleDuration):
+    def getMaxPhi(self, t, currState, minDur, endDur):
         '''
         recursive rule. Find duration that maximizes current phi
         @return: maxPhi - pprob
@@ -237,16 +272,18 @@ class _DurationHMM(_ContinuousHMM):
         maxPhi = -1 * numpy.Infinity 
         maxDurIndex = -1
         
-#         print "in getMaxPhi: maxDuration =",  maxPossibleDuration
-          
-        for d in range(1, maxPossibleDuration+1):
+#         print "in getMaxPhi: maxDuration =",  currRefDur
+    
+
+        
+        for d in range(minDur, endDur):
 
             currPhi = self.phi[t-d][fromState]
                         
             updateQuantity, sumObsProb = self._calcUpdateQuantity(t-d+1, d, currState, currPhi, sumObsProb)
-            #sanity check
 
-            if updateQuantity > maxPhi:
+            #sanity check. The '=' sign is when both are infty, take d as index
+            if updateQuantity >= maxPhi:
                 maxPhi = updateQuantity
                 maxDurIndex = d
         
@@ -278,4 +315,5 @@ class _DurationHMM(_ContinuousHMM):
 
 
         return updateQuantity, sumObsProb
-             
+
+    

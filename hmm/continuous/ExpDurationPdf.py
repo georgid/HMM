@@ -16,7 +16,7 @@ class ExpDurationPdf(object):
 
     def getWaitLogLik(self, d):
         '''
-        get lik for duration d for given score duration scoreDur for phoneme  
+        get lik for duration d for given score duration refScoreDur for phoneme  
         used in _DurationHMM
         '''
         
@@ -31,8 +31,8 @@ class ExpDurationPdf(object):
 #         elif d >= MAX_:
 #             return -Infinity
         else:
-#             if scoreDur > self.lookupTableLogLiks.shape[0]:
-#                 sys.exit("current score duration {} is bigger than max in list of lookup score durations {}".format( scoreDur, self.lookupTableLogLiks.shape[0]))
+#             if refScoreDur > self.lookupTableLogLiks.shape[0]:
+#                 sys.exit("current score duration {} is bigger than max in list of lookup score durations {}".format( refScoreDur, self.lookupTableLogLiks.shape[0]))
             lik = (1-self.pWait) * pow(self.pWait, d-1) 
             return  numpy.log(lik)
     
