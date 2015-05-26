@@ -8,6 +8,7 @@ import numpy
 import os
 import sys
 import logging
+from Cython.Compiler.Naming import self_cname
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
@@ -78,7 +79,7 @@ class _ContinuousHMM(_BaseHMM):
         flag to load some decoding info from cached files, for example bMap and durationLookup table . 
         makes decoding faster 
         '''
-        self.usePersistentFiles = False
+        self.usePersistentFiles = True
         self.logger = logging.getLogger(__name__)
 
     
@@ -109,8 +110,26 @@ class _ContinuousHMM(_BaseHMM):
                     else:
                         covars_tmp[i][j] = self.covars[i][j]
             self.covars = covars_tmp
-              
+    
     def _mapB(self, observations):
+        '''
+        Required implementation for _mapB. Refer to _BaseHMM for more details.
+        '''
+        
+        self.logger.info("calculating obs probs..." )
+
+        self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
+        for j in xrange(self.n):
+            logLiksForj = self._pdfAllFeatures(observations,j)
+            
+            # normalize  probs for a state to sum to 1
+            liksForj = numpy.exp(logLiksForj)
+            sumForj = numpy.sum(liksForj)
+            liksForj /= sumForj
+            self.B_map[j,:] = numpy.log(liksForj)
+
+    
+    def _mapB_OLD(self, observations):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         This method highly optimizes the running time, since all PDF calculations
@@ -129,7 +148,7 @@ class _ContinuousHMM(_BaseHMM):
             # check length
             if self.B_map.shape[1]  == len(observations)  and self.B_map.shape[0] == self.n:
 #                 sys.exit('{} does not store all feature vectors. delete it and generate them again'.format(self.PATH_BMAP))
-            
+                
                 self.B_map = numpy.log( self.B_map)
                 return     
             else:
@@ -137,23 +156,23 @@ class _ContinuousHMM(_BaseHMM):
        
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
         self.Bmix_map = numpy.zeros( (self.n,self.m,len(observations)), dtype=self.precision)
+        
         for j in xrange(self.n):
             for t in xrange(len(observations)):
                 self.logger.debug("at calcbjt at state {} and time {}...\n".format(j, t))
                 lik = self._calcbjt(j, t, observations[t])
+              
                 if lik == 0: 
                     self.logger.debug("obs likelihood at time {} for state {} = 0. Repair by adding {}".format(t,j, MINIMAL_PROB))
                     lik = MINIMAL_PROB
+                  
                 self.B_map[j,t] = lik
-
-        self.logger.debug("normalizing ...")
-        self._normalizeBByMax()
-        
+  
 
         # normalize over states
         for t in xrange(len(observations)):
              self.B_map[:,t] = _normalize(self.B_map[:,t])
-#              self.logger.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
+             self.logger.debug("sum={} at time {}".format(sum(self.B_map[:,t]), t))
              
         if self.usePersistentFiles:        
             writeListOfListToTextFile(self.B_map, None , self.PATH_BMAP)                 
@@ -291,9 +310,12 @@ class _ContinuousHMM(_BaseHMM):
     def _normalizeBByMax(self):
         '''
         Helper method to normalize probabilities. Divide them by max in array.
+        does not make difference
         '''
-        maxProb = numpy.amax(self.B_map)
         
+        self.logger.debug("normalizing ...")
+
+        maxProb = numpy.amax(self.B_map)
         for j in xrange(self.B_map.shape[0]):
             for t in xrange(self.B_map.shape[1]):
                 self.B_map[j][t] = self.B_map[j][t] / maxProb
@@ -305,6 +327,14 @@ class _ContinuousHMM(_BaseHMM):
         Probability Distribution Function that will be used in each
         mixture component.
         '''        
+        raise NotImplementedError("PDF function must be implemented")
+    
+    def _pdfAllFeatures(self,observations,j):
+        '''
+        Deriving classes should implement this method.
+        get the pdf of a series of features for model j
+        
+        '''  
         raise NotImplementedError("PDF function must be implemented")
     
 def _normalize(arr):

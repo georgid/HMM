@@ -38,20 +38,74 @@ class _DurationHMM(_ContinuousHMM):
     '''
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
+    def __init__(self,statesNetwork, numMixtures, numDimensions):
     
-    def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
+#     def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
             '''
             See _ContinuousHMM constructor for more information
             '''
-            _ContinuousHMM.__init__(self,n,m,d,A,means,covars,w,pi,min_std,init_type,precision,verbose) #@UndefinedVariable
-
+            means, covars, weights, pi = self._constructHMMNetworkParameters(statesNetwork, numMixtures, numDimensions)
+             
+            n = len(statesNetwork)
+            min_std=0.01
+            init_type='uniform'
+            precision=numpy.double
+            verbose = False 
+            _ContinuousHMM.__init__(self, n, numMixtures, numDimensions, None, means, covars, weights, pi, min_std,init_type,precision,verbose) #@UndefinedVariable
+    
+            self.statesNetwork = statesNetwork
+            self.setDurForStates(listDurations=[])
+      
+    def _constructHMMNetworkParameters(self,  statesSequence, numMixtures, numDimensions):
+        '''
+        tranform other htkModel params to  format of gyuz's hmm class
+        '''
+        
+       
+        numStates = len(statesSequence)
+        means = numpy.empty((numStates, numMixtures, numDimensions))
+        
+        # init covars
+        covars = [[ numpy.matrix(numpy.eye(numDimensions,numDimensions)) for j in xrange(numMixtures)] for i in xrange(numStates)]
+        
+        weights = numpy.ones((numStates,numMixtures),dtype=numpy.double)
+        
+        # start probs :
+        pi = numpy.zeros((numStates), dtype=numpy.double)
+        
+        # avoid log(0) 
+        pi.fill(sys.float_info.min)
+#          allow to start only at first state
+        pi[0] = 1
+        
+        # equal prob. for states to start
+#         pi = numpy.ones( (numStates)) *(1.0/numStates)
+        
+    
+         
+        if statesSequence==None:
+            sys.exit('no state sequence')
+               
+        for i in range(len(statesSequence) ):
+            state  = statesSequence[i] 
+            
+            for (numMixture, weight, mixture) in state.mixtures:
+                
+                weights[i,numMixture-1] = weight
+                
+                means[i,numMixture-1,:] = mixture.mean.vector
+                
+                variance_ = mixture.var.vector
+                for k in  range(len( variance_) ):
+                    covars[i][numMixture-1][k,k] = variance_[k]
+        return means, covars, weights, pi
+    
                 
     def setALPHA(self, ALPHA):
         # DURATION_WEIGHT 
         self.ALPHA = ALPHA
     
-    def setWaitProbSilState(self, waitProbSil):
-        self.waitProbSil = waitProbSil
+
     
     def setDurForStates(self, listDurations):
         '''
@@ -59,10 +113,14 @@ class _DurationHMM(_ContinuousHMM):
         @param listDurations read from  state.Durations
         
         '''
+        if listDurations == []:
+            for  stateWithDur_ in self.statesNetwork:
+                listDurations.append(stateWithDur_.getDurationInFrames())
+                
+        # sanity check  
         if len(listDurations) != self.n:
             sys.exit("#Durations from list = {}, whereas #states={}".format(len(listDurations), self.n ))
-            
-        # set map of durations 
+
         self.durationMap =  numpy.array(listDurations, dtype=int)
         # DEBUG: 
         writeListToTextFile(self.durationMap, None , PATH_LOGS + '/durationMap') 
@@ -73,21 +131,22 @@ class _DurationHMM(_ContinuousHMM):
 #         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
         self.durationPdf = DurationPdf()
         self.R_MAX = int( self.durationPdf.getEndDur(numpy.amax(self.durationMap) ) )
+    
 
-        self.silDurationPdf = ExpDurationPdf(self.waitProbSil)
 
-    def getWaitLogLik(self, d, state):
+    def getWaitLogLik(self, d, whichState):
         '''
         return waiting pdf. uses normal distribution
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  
-        # HARD CODE get different prob. ditrib. assume 1st and last state are sil
-        if state == 0 or state == self.n - 1:
-            return self.silDurationPdf.getWaitLogLik(d)
+        stateWithDuration = self.statesNetwork[whichState]
+        if stateWithDuration.distributionType=='exponential':
+            durationDistrib = ExpDurationPdf(stateWithDuration.waitProb)
+            return durationDistrib.getWaitLogLik(d)
         
-        scoreDurCurrState = self.durationMap[state]
-        
+
+        scoreDurCurrState = self.durationMap[whichState]
         return self.durationPdf.getWaitLogLik(d, scoreDurCurrState)
          
     
@@ -105,6 +164,7 @@ class _DurationHMM(_ContinuousHMM):
         # return for backtracking
         return  self.chi, self.psi
     
+
     
     def initDecodingParameters(self, observations):
         '''
@@ -117,7 +177,7 @@ class _DurationHMM(_ContinuousHMM):
             sys.exit(NameError.message)
         
         self._mapB(observations)
-        
+    
         # backpointer: how much duration waited in curr state
         self.chi = numpy.empty((lenObservations, self.n), dtype=self.precision)
         self.chi.fill(-1)
@@ -129,7 +189,7 @@ class _DurationHMM(_ContinuousHMM):
         # init. t< R_MAX
         self._initBeginingPhis(lenObservations)
         if (self.R_MAX >= lenObservations):
-            sys.exit("MAX_Dur {} of a state is more than total number of obesrvations {}. Unable to decode".format(self.R_MAX, lenObservations))
+            sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
     
     
     def _calcCurrStatePhi(self,  t, currState):

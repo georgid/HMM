@@ -23,6 +23,8 @@ class _BaseHMM(object):
         self.precision = precision
         self.verbose = verbose
         self._eta = self._eta1
+    
+
         
     def _eta1(self,t,T):
         '''
