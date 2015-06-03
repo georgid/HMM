@@ -10,8 +10,8 @@ import sys
 from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
-from hmm.continuous.DurationPdf  import DurationPdf, \
-    deviationInSec, NUMFRAMESPERSEC
+from hmm.continuous.DurationPdf  import DurationPdf
+
 from hmm.continuous.ExpDurationPdf import ExpDurationPdf
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
@@ -29,7 +29,7 @@ PATH_LOGS='.'
 
 
 
-# ALPHA =  0.99
+ALPHA =  0.99
 # OVER_MAX_DUR_FACTOR = 1.3
 
 
@@ -38,7 +38,7 @@ class _DurationHMM(_ContinuousHMM):
     '''
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
-    def __init__(self,statesNetwork, numMixtures, numDimensions):
+    def __init__(self,statesNetwork, numMixtures, numDimensions, deviationInSec):
     
 #     def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
             '''
@@ -54,7 +54,13 @@ class _DurationHMM(_ContinuousHMM):
             _ContinuousHMM.__init__(self, n, numMixtures, numDimensions, None, means, covars, weights, pi, min_std,init_type,precision,verbose) #@UndefinedVariable
     
             self.statesNetwork = statesNetwork
+            
+            self.durationPdf = DurationPdf(deviationInSec)
+                
             self.setDurForStates(listDurations=[])
+            
+            self.ALPHA = ALPHA # could be redefined by setAlpha() method
+
       
     def _constructHMMNetworkParameters(self,  statesSequence, numMixtures, numDimensions):
         '''
@@ -129,7 +135,6 @@ class _DurationHMM(_ContinuousHMM):
 #         self.durationMap =  numpy.arange(1,self.n+1)
        
 #         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
-        self.durationPdf = DurationPdf()
         self.R_MAX = int( self.durationPdf.getEndDur(numpy.amax(self.durationMap) ) )
     
 
@@ -327,7 +332,7 @@ class _DurationHMM(_ContinuousHMM):
         used in _calcCurrStatePhi
         '''
         sumObsProb = 0
-         # due to forced alignment
+         # (hard coded to prev. state in forced alignment)
         fromState = currState - 1
         maxPhi = -1 * numpy.Infinity 
         maxDurIndex = -1
@@ -339,8 +344,8 @@ class _DurationHMM(_ContinuousHMM):
         for d in range(minDur, endDur):
 
             currPhi = self.phi[t-d][fromState]
-                        
-            updateQuantity, sumObsProb = self._calcUpdateQuantity(t-d+1, d, currState, currPhi, sumObsProb)
+            whichTime =  t-d+1
+            updateQuantity, sumObsProb = self._calcUpdateQuantity(whichTime, d, currState, currPhi, sumObsProb)
 
             #sanity check. The '=' sign is when both are infty, take d as index
             if updateQuantity >= maxPhi:

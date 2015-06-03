@@ -11,8 +11,7 @@ from numpy.core.numeric import Infinity
 
 
 NUMFRAMESPERSEC = 100
-#@param deviationInSec: how much vocal can deviate from refDur
-deviationInSec = 0.07
+
 
 
 class DurationPdf(object):
@@ -20,7 +19,11 @@ class DurationPdf(object):
     only one duration probability distribution: normal distribution  
     '''
 
-    def __init__(self):
+    def __init__(self, deviationInSec):
+        '''
+        #@param deviationInSec: how much vocal can deviate from refDur
+        deviationInSec = 0.07
+        '''
         
           
         # normal distribution with 2 symmetric lobes

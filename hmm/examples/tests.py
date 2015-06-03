@@ -26,7 +26,7 @@ from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
 from LyricsWithModels import LyricsWithModels
 from Decoder import Decoder
-from doitOneChunk import loadMFCCs
+from FeatureExtractor import loadMFCCs
 
 
 modelDIR = pathAlignmentDuration + '/model/'
@@ -149,7 +149,8 @@ def makeTestDurationHMM():
 
 def testRand_DurationHMM():
     '''
-    test with audio features from real recording, but test model 
+    test with audio features from real recording, but some random model, not trained model 
+    TODO: this might not work. rewrite
     '''
     durGMMhmm,d = makeTestDurationHMM()
     
@@ -174,28 +175,28 @@ def testRand_DurationHMM():
 #     print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
 
 
-def testSmallAudioFramgment():
+def loadSmallAudioFragment(lyrics, URIrecordingNoExt, fromTs=-1, toTs=-1):
     '''
     test duration-explicit HMM with audio features from real recording and htk-loaded model
     asserts it works. no results provided 
     '''
-    withSynthesis=False
-    Phonetizer.initLookupTable(withSynthesis,  'grapheme2METUphonemeLookupTable')
-     
-#     makamScore = loadMakamScore(pathToComposition)
-    lyrics = loadLyrics(pathToComposition, whichSection)
+ 
      
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
     lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False')
      
-    observationFeatures = loadMFCCs(URIrecordingNoExt) #     observationFeatures = observationFeatures[0:1000]
+    observationFeatures = loadMFCCs(URIrecordingNoExt, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
      
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
-     
-    alpha = 0.97
-    decoder = Decoder(lyricsWithModels, alpha)
+#     lyricsWithModels.printWordsAndStates()
     
+    return lyricsWithModels, observationFeatures
+
+def decode(lyricsWithModels, observationFeatures):   
+    alpha = 0.97
+    deviationInSec = 0.07
+    decoder = Decoder(lyricsWithModels, alpha, deviationInSec)
     
     #  decodes
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
@@ -203,9 +204,12 @@ def testSmallAudioFramgment():
     
 
     
+if __name__ == '__main__':    
+    #test_simple()
+    # test_rand()
+    #test_discrete()
+    # testRand_DurationHMM()
     
-#test_simple()
-# test_rand()
-#test_discrete()
-# testRand_DurationHMM()
-testSmallAudioFramgment()
+    withSynthesis = True
+    lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
+    loadSmallAudioFragment(lyrics, URIrecordingNoExt)
