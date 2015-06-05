@@ -18,6 +18,7 @@ if hmmDir not in sys.path: sys.path.append(parentDir)
 from hmm._BaseHMM import _BaseHMM
 
 
+
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
@@ -81,7 +82,7 @@ class _ContinuousHMM(_BaseHMM):
         '''
         self.usePersistentFiles = True
         self.logger = logging.getLogger(__name__)
-
+        self.logger.setLevel(logging.DEBUG)
     
     def setPersitentFiles(self, usePersistentFiles, URI_bmap):
        

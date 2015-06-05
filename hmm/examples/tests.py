@@ -12,6 +12,8 @@ from hmm.continuous.GMHMM import GMHMM
 from hmm.discrete.DiscreteHMM import DiscreteHMM
 import os
 import sys
+from hmm.Parameters import Parameters
+from hmm.Path import Path
 
 
 # file parsing tools as external lib 
@@ -40,7 +42,8 @@ from htk_converter import HtkConverter
 
 
 pathToComposition = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/'
-URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/safiye/01_Bakmiyor_1_zemin'
+# URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/safiye/01_Bakmiyor_1_zemin'
+URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade'
 whichSection = 1
 
 def test_simple():
@@ -175,7 +178,7 @@ def testRand_DurationHMM():
 #     print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
 
 
-def loadSmallAudioFragment(lyrics, URIrecordingNoExt, fromTs=-1, toTs=-1):
+def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1):
     '''
     test duration-explicit HMM with audio features from real recording and htk-loaded model
     asserts it works. no results provided 
@@ -186,7 +189,7 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, fromTs=-1, toTs=-1):
     htkParser.load(MODEL_URI, HMM_LIST_URI)
     lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False')
      
-    observationFeatures = loadMFCCs(URIrecordingNoExt, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
+    observationFeatures = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
      
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
 #     lyricsWithModels.printWordsAndStates()
@@ -194,13 +197,26 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, fromTs=-1, toTs=-1):
     return lyricsWithModels, observationFeatures
 
 def decode(lyricsWithModels, observationFeatures):   
+    '''
+    same as decoder.decodeAudio() without the parts with WITH_Duration flag.
+    '''
     alpha = 0.97
-    deviationInSec = 0.07
-    decoder = Decoder(lyricsWithModels, alpha, deviationInSec)
+    deviationInSec = 0.1
+    ONLY_MIDDLE_STATE=False
+    params = Parameters(alpha, ONLY_MIDDLE_STATE, deviationInSec)
+    decoder = Decoder(lyricsWithModels, params.ALPHA, params.deviationInSec)
     
     #  decodes
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
+    
+    # backtrack
+    path =  Path(chiBackPointer, psiBackPointer)
+    detectedWordList = decoder.path2ResultWordList(path)
+         # DEBUG
+    
+    decoder.lyricsWithModels.printWordsAndStatesAndDurations(decoder.path)
+    path.printDurations()
     
 
     
@@ -210,6 +226,7 @@ if __name__ == '__main__':
     #test_discrete()
     # testRand_DurationHMM()
     
-    withSynthesis = True
+    withSynthesis = False
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-    loadSmallAudioFragment(lyrics, URIrecordingNoExt)
+    lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    decode(lyricsWithModels, observationFeatures)

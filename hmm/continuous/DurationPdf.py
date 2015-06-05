@@ -41,14 +41,14 @@ class DurationPdf(object):
         
         self.liks = numpy.log(self.liks)
     
-    def getStartDur(self, refScoreDur):
+    def getMinRefDur(self, refScoreDur):
         '''
         R_i - \sigma
         '''
         dur =  refScoreDur - (self.numDurs-1)/2
         return  max(1, dur)
     
-    def getEndDur(self, refScoreDur):
+    def getMaxRefDur(self, refScoreDur):
         '''
         R_i + \sigma
         '''
@@ -65,13 +65,18 @@ class DurationPdf(object):
                 sys.exit("d = 0 not implemented yet")
                 return 
             # used in kappa. -Inf because we never want kappa to be selected if over max region of duration
-            elif d < self.getStartDur(refScoreDur) or d > self.getEndDur(refScoreDur):
+            elif d < self.getMinRefDur(refScoreDur) or d > self.getMaxRefDur(refScoreDur):
                 return -Infinity
             else:
                 # note: allow negative startIdx to get proper index in liks
                 startIdx = refScoreDur - (self.numDurs-1)/2
                 # make it start from 0
-                return self.liks[d- startIdx]
+                idx = d- startIdx
+
+#                 idx = d- startIdx + 1
+#                 if idx == len(self.liks):
+#                     idx = idx -1
+                return self.liks[idx]
     #         set_printoptions(threshold='nan') 
     
 if __name__ == '__main__':

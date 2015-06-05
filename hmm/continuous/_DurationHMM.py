@@ -6,6 +6,7 @@ Created on Oct 31, 2014
 import numpy
 import os
 import sys
+import time
 
 from numpy.core.numeric import Infinity
 
@@ -22,7 +23,7 @@ parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.
 pathUtils = os.path.join(parentDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
 
-from Utilz import writeListOfListToTextFile, writeListToTextFile
+from Utilz import writeListOfListToTextFile, writeListToTextFile, readListOfListTextFile_gen
 
 # PATH_LOGS='/Users/joro/Downloads/'
 PATH_LOGS='.'
@@ -36,6 +37,7 @@ ALPHA =  0.99
 
 class _DurationHMM(_ContinuousHMM):
     '''
+from IPython.core.tests.test_formatters import numpy
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
     def __init__(self,statesNetwork, numMixtures, numDimensions, deviationInSec):
@@ -135,7 +137,7 @@ class _DurationHMM(_ContinuousHMM):
 #         self.durationMap =  numpy.arange(1,self.n+1)
        
 #         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
-        self.R_MAX = int( self.durationPdf.getEndDur(numpy.amax(self.durationMap) ) )
+        self.R_MAX = int( self.durationPdf.getMaxRefDur(numpy.amax(self.durationMap) ) )
     
 
 
@@ -161,8 +163,13 @@ class _DurationHMM(_ContinuousHMM):
         
         print "decoding..."
         for t in range(self.R_MAX,len(observations)):                          
-            for currState in xrange(self.n):
-                self._calcCurrStatePhi(t, currState) # get max duration quantities
+            for currState in xrange(1, self.n):
+                self.computePhi(t, currState) # get max duration quantities
+                  
+
+#         for t in range(self.R_MAX+19, self.R_MAX+20):                          
+#             for currState in xrange(57, 59):
+#                 self.computePhi(t, currState) # get max duration quantities
         
         writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi') 
             
@@ -192,26 +199,32 @@ class _DurationHMM(_ContinuousHMM):
         self.psi.fill(-1)
    
         # init. t< R_MAX
+       
         self._initBeginingPhis(lenObservations)
         if (self.R_MAX >= lenObservations):
             sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
     
     
-    def _calcCurrStatePhi(self,  t, currState):
+    def computePhi(self,  t, currState):
         '''
         calc. quantities in recursion  equation
         '''
-        self.logger.debug("at time t={}".format(t) )          
+        
+        print "time: {}".format(t)
 
         currRefDur = self.durationMap[currState]
         # take 30% more from dur from score 
 #         currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
        
-        minDur = self.durationPdf.getStartDur(currRefDur)
-        endDur =  self.durationPdf.getEndDur(currRefDur)
+        minDur = self.durationPdf.getMinRefDur(currRefDur)
+        endDur =  self.durationPdf.getMaxRefDur(currRefDur)
+        
         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
+#         print "MAX: " + str(maxDurIndex)
         
-        
+#         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi_slow(t, currState, minDur, endDur)
+#         print "MAX: slow " + str(maxDurIndex) + "\n"
+
                 
         self.phi[t][currState] = maxPhi
         
@@ -221,9 +234,133 @@ class _DurationHMM(_ContinuousHMM):
                 
            
 
+   
+
+
+  
+    def getMaxPhi(self,t,currState,minDur,maxDur):
+        '''
+        with numpy vector computation
+        '''
+        
+        fromState = currState - 1
+        maxPhi = -1 * numpy.Infinity 
+        maxDurIndex = -1
+         
+         # 1) add +1 to make it start from t-minDur 
+        phisFrom = self.phi[t-maxDur+1:t-minDur+1,fromState]
+        
+        # 2) wait logs
+        reducedLengthDurationInterval =  len(phisFrom) # lets decode for this range of duration 
+        offset =  len(self.durationPdf.liks) - reducedLengthDurationInterval -1
+        waitLogLiks = self.durationPdf.liks[offset:-1,0]
+        waitLogLiks = waitLogLiks.T
+        waitLogLiks  = waitLogLiks[::-1]
+        
+#         3) sumObsProb 
+        b_map_slice = self.B_map[currState, t-maxDur+2:t-minDur+2] # first slice
+        b_map_slice = b_map_slice[::-1] # get initial slice
+        sumObsProb = numpy.zeros(b_map_slice.shape)
+        
+        #### add incrementally obs probs to initial slice
+        tmp = 0
+        for i in range(reducedLengthDurationInterval):
+            tmp += b_map_slice[i]  
+            sumObsProb[i]=tmp
+        sumObsProb = sumObsProb[::-1]
+        
+        # sum and get max
+        phis = phisFrom + self.ALPHA * waitLogLiks + (1-self.ALPHA) * sumObsProb 
+
+        print "  VECTRO: state = {}, time = {}".format( currState, t ) 
+        
+        
+#         print  "\t\t phis= {}".format (phis)  
+#         print  "\t\t waitLogLik= {}".format (waitLogLiks) 
+#         print "\t\t sumObsProb= {}".format( sumObsProb) 
+
+        
+        maxPhi = numpy.max(phis)
+        maxDurIndex = maxDur - numpy.argmax(phis) - 1
+        
+        # add remaining part from sum ObsProb form d = 1:minDur
+        b_map_slice = self.B_map[currState, t-minDur+2:t+1]
+        maxPhi += (1-self.ALPHA) * numpy.sum(b_map_slice)
+        
+        return maxPhi, fromState,  maxDurIndex  
+        
+        
+        
+    def getMaxPhi_slow(self, t, currState, minDur, endDur):
+        '''
+        recursive rule. Find duration that maximizes current phi
+        @return: maxPhi - pprob
+        @return: fromState - from which state we come (hard coded to prev. state in forced alignment) 
+        @return: maxDurIndex - index Duration with max prob. INdex for t begins at 0
+        
+        used in _initBeginingPhi
+        '''
+        sumObsProb = 0
+         # (hard coded to prev. state in forced alignment)
+        fromState = currState - 1
+        maxPhi = -1 * numpy.Infinity 
+        maxDurIndex = -1
+        
+        print "in getMaxPhi_slow:"
+    
+
+        
+        for d in range(minDur, endDur):
+
+            currPhi = self.phi[t-d][fromState]
+            whichTime =  t-d+1
+            updateQuantity, sumObsProb = self._calcUpdateQuantity(whichTime, d, currState, currPhi, sumObsProb)
+            
+            
+            #sanity check. The '=' sign is when both are infty, take d as index
+            if updateQuantity >= maxPhi:
+                maxPhi = updateQuantity
+                maxDurIndex = d
+        
+        
+        if maxDurIndex == -1:
+            sys.exit(" no max duration at time {} and state {}".format(t, currState))
+        
+        # add remaining part from sum ObsProb form d = 1:minDur
+        b_map_slice = self.B_map[currState, t-minDur+2:t+1]
+        maxPhi += (1-self.ALPHA) * numpy.sum(b_map_slice)
+        
+        return maxPhi, fromState, maxDurIndex    
+    
+    
+    def _calcUpdateQuantity(self, whichTime, whichDuration, currState, currPhi, sumObsProb):
+        '''
+        calc update quantity.
+        used in getMaxPhi_slow
+        used in init kappas
+        '''
+        
+#         print " state = {}, d = {}".format( currState, whichDuration ) 
+
+#         print "\t\t currPhi= {}".format(currPhi)  
+
+        
+        waitLogLik = self.getWaitLogLik(whichDuration, currState)
+#         print  "\t\t waitLogLik= {}".format (waitLogLik) 
+            
+        sumObsProb += self.B_map[currState, whichTime]
+#         print "\t\t sumObsProb= {}".format( sumObsProb)      
+        
+        updateQuantity = currPhi + self.ALPHA * waitLogLik + (1-self.ALPHA)*sumObsProb
+#         print "\t UPDATE QUANT= {}".format(updateQuantity)  
+
+
+        return updateQuantity, sumObsProb
+
+    
     def computePhiStar(self, t, currState):
         '''
-        boundaries check for minDur and endDur makes PhiStar different from phi 
+        for initialization. boundaries check for minDur and endDur makes PhiStar different from phi 
         '''
         
         fromState =-1
@@ -233,15 +370,15 @@ class _DurationHMM(_ContinuousHMM):
     #                 currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
         
         ####### boundaries check
-        minDur = self.durationPdf.getStartDur(currRefDur)
+        minDur = self.durationPdf.getMinRefDur(currRefDur)
         if t <= minDur: # min duration is before beginning of audio 
             phiStar = -Infinity
         else:
-            currReducedMaxDur = min(t, self.durationPdf.getEndDur(currRefDur))
-            phiStar, fromState, maxDurIndex = self.getMaxPhi(t, currState, minDur, currReducedMaxDur)
+            currReducedMaxDur = min(t, self.durationPdf.getMaxRefDur(currRefDur))
+            phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
         return phiStar, fromState, maxDurIndex
     
-
+    
     def _initBeginingPhis(self, lenObservations):
         '''
         init phis when t < self.R_MAX
@@ -253,12 +390,14 @@ class _DurationHMM(_ContinuousHMM):
         self.phi = numpy.empty((lenObservations,self.n),dtype=self.precision)
         self.phi.fill(-Infinity)
         
-        
+#         self.phi = numpy.loadtxt(PATH_LOGS + '/phi_init', dtype=self.precision)
+#         return
+         
         # init t=0
 #         for currState in range(self.n): self.phi[0,currState] = self.kappas[currState,0]
         self.phi[0,:] = self.kappas[0,:]
         
-        # init first state = kappa (done to allow self.getMaxPhi  to access prev. currState)
+        # init first state = kappa (done to allow self.getMaxPhi_slow  to access prev. currState)
         self.phi[:len(self.kappas[:,0]),0] = self.kappas[:,0]        
         
       
@@ -301,7 +440,7 @@ class _DurationHMM(_ContinuousHMM):
         
         for currState in range(self.n):
             sumObsProb = 0
-            currRefMax = self.durationPdf.getEndDur( self.durationMap[currState])
+            currRefMax = self.durationPdf.getMaxRefDur( self.durationMap[currState])
             currLogPi = numpy.log(self.pi[currState])
             
             for t in range(1,int(currRefMax)+1):
@@ -317,68 +456,4 @@ class _DurationHMM(_ContinuousHMM):
                 
         writeListOfListToTextFile(self.kappas, None , PATH_LOGS + '/kappas') 
     
-    
-  
-        
-        
-    def getMaxPhi(self, t, currState, minDur, endDur):
-        '''
-        recursive rule. Find duration that maximizes current phi
-        @return: maxPhi - pprob
-        @return: fromState - from which state we come (hard coded to prev. state in forced alignment) 
-        @return: maxDurIndex - index Duration with max prob. INdex for t begins at 0
-        
-        used in _initBeginingPhis
-        used in _calcCurrStatePhi
-        '''
-        sumObsProb = 0
-         # (hard coded to prev. state in forced alignment)
-        fromState = currState - 1
-        maxPhi = -1 * numpy.Infinity 
-        maxDurIndex = -1
-        
-#         print "in getMaxPhi: maxDuration =",  currRefDur
-    
-
-        
-        for d in range(minDur, endDur):
-
-            currPhi = self.phi[t-d][fromState]
-            whichTime =  t-d+1
-            updateQuantity, sumObsProb = self._calcUpdateQuantity(whichTime, d, currState, currPhi, sumObsProb)
-
-            #sanity check. The '=' sign is when both are infty, take d as index
-            if updateQuantity >= maxPhi:
-                maxPhi = updateQuantity
-                maxDurIndex = d
-        
-        if maxDurIndex == -1:
-            sys.exit(" no max duration at time {} and state {}".format(t, currState))
-        return maxPhi, fromState, maxDurIndex    
-    
-    def _calcUpdateQuantity(self, whichTime, whichDuration, currState, currPhi, sumObsProb):
-        '''
-        calc update quantity.
-        used in getMaxPhi
-        used in init kappas
-        '''
-        
-    #       print " d= {} time = {}, state = {}".format(whichDuration, whichTime, currState ) 
-
-#             print "\t\t currPhi= {}".format(currPhi)  
-
-        
-        waitLogLik = self.getWaitLogLik(whichDuration, currState)
-#         print  "\t\t waitLogLik= {}".format (waitLogLik) 
-            
-        sumObsProb += self.B_map[currState, whichTime]
-#         print "\t\t sumObsProb= {}".format( sumObsProb)      
-        
-        updateQuantity = currPhi + self.ALPHA * waitLogLik + (1-self.ALPHA)*sumObsProb
-#         updateQuantity = currPhi +  waitLogLik + sumObsProb
-#             print "\t UPDATE QUANT= {}".format(updateQuantity)  
-
-
-        return updateQuantity, sumObsProb
-
     
