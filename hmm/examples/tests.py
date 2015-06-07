@@ -12,7 +12,7 @@ from hmm.continuous.GMHMM import GMHMM
 from hmm.discrete.DiscreteHMM import DiscreteHMM
 import os
 import sys
-from hmm.Parameters import Parameters
+from hmm.Parameters import Parameters, DEVIATION_IN_SEC
 from hmm.Path import Path
 
 
@@ -190,9 +190,10 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     '''
  
      
+
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
-    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False')
+    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', DEVIATION_IN_SEC)
      
     observationFeatures = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
      
@@ -201,15 +202,16 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     
     return lyricsWithModels, observationFeatures
 
+
+
 def decode(lyricsWithModels, observationFeatures):   
     '''
     same as decoder.decodeAudio() without the parts with WITH_Duration flag.
     '''
     alpha = 0.97
-    deviationInSec = 0.1
     ONLY_MIDDLE_STATE=False
-    params = Parameters(alpha, ONLY_MIDDLE_STATE, deviationInSec)
-    decoder = Decoder(lyricsWithModels, params.ALPHA, params.deviationInSec)
+    params = Parameters(alpha, ONLY_MIDDLE_STATE)
+    decoder = Decoder(lyricsWithModels, params.ALPHA)
     
     #  decodes
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)

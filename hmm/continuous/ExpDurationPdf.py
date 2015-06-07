@@ -8,12 +8,24 @@ import numpy
 
 class ExpDurationPdf(object):
     
-    def __init__(self, pWait):
+    def __init__(self):
         self.MAX_ALLOWED_DURATION_RATIO = 2
         # wait at same state prob TODO: read from model
-#         self.pWait = 0.9
-        self.pWait = pWait
-
+        self.pWait = 0.9
+    
+    def setWaitProb(self, waitProb, durationInFrames):
+        self.waitProb = waitProb
+        self.durationInFrames = durationInFrames
+        
+        # TODO: create here wait prob. 
+        
+    
+    def getMinRefDur(self):
+        return 1
+    
+    def getMaxRefDur(self):
+        return  self.durationInFrames
+            
     def getWaitLogLik(self, d):
         '''
         get lik for duration d for given score duration refScoreDur for phoneme  

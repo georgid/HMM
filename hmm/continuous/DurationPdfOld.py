@@ -135,7 +135,7 @@ class DurationPdfOld(object):
             if currPointer >= 0:
                 self.lookupTableLogLiks[currMeanDur-1, currPointer ] = liks[d]
             
-    def getWaitLogLik(self, d, refScoreDur):
+    def getWaitLogLikOneDur(self, d, refScoreDur):
         '''
         get lik for duration d for given score duration refScoreDur for phoneme  
         used in _DurationHMM
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     
     print durPdf.lookupTableLogLiks
     
-    print durPdf.getWaitLogLik(10, 10)
+    print durPdf.getWaitLogLikOneDur(10, 10)
     
     
         

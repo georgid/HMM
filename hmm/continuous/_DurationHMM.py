@@ -38,7 +38,7 @@ class _DurationHMM(_ContinuousHMM):
     '''
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
-    def __init__(self,statesNetwork, numMixtures, numDimensions, deviationInSec):
+    def __init__(self,statesNetwork, numMixtures, numDimensions):
     
 #     def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
             '''
@@ -55,8 +55,6 @@ class _DurationHMM(_ContinuousHMM):
     
             self.statesNetwork = statesNetwork
             
-            self.durationPdf = DurationPdf(deviationInSec)
-                
             self.setDurForStates(listDurations=[])
             
             self.ALPHA = ALPHA # could be redefined by setAlpha() method
@@ -135,24 +133,30 @@ class _DurationHMM(_ContinuousHMM):
 #         self.durationMap =  numpy.arange(1,self.n+1)
        
 #         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
-        self.R_MAX = int( self.durationPdf.getMaxRefDur(numpy.amax(self.durationMap) ) )
+        self.R_MAX = 0
+        for  stateWithDur_ in self.statesNetwork:
+            if stateWithDur_.getMaxRefDur() > self.R_MAX:
+                self.R_MAX  = stateWithDur_.getMaxRefDur()
+        self.R_MAX = int(self.R_MAX)
+            
+#         self.R_MAX = int( self.durationPdf.getMaxRefDur(numpy.amax(self.durationMap) ) )
     
-
-
-    def getWaitLogLik(self, d, whichState):
+   
+    def getWaitLogLikOneDur(self, d, whichState):
         '''
         return waiting pdf. uses normal distribution
         IMPORTANT: if d>D function should still return values up to some limit (e.g. +100% and least till MaxDur)
         STUB
         '''  
         stateWithDuration = self.statesNetwork[whichState]
-        if stateWithDuration.distributionType=='exponential':
-            durationDistrib = ExpDurationPdf(stateWithDuration.waitProb)
-            return durationDistrib.getWaitLogLik(d)
         
-
+        # expo distrib
+        if stateWithDuration.distributionType=='exponential':
+            return stateWithDuration.durationDistribution.getWaitLogLik(d)
+        
+        # normal distrib
         scoreDurCurrState = self.durationMap[whichState]
-        return self.durationPdf.getWaitLogLik(d, scoreDurCurrState)
+        return stateWithDuration.durationDistribution.getWaitLogLik(d, scoreDurCurrState)
          
     
     def _viterbiForcedDur(self, observations):
@@ -202,21 +206,19 @@ class _DurationHMM(_ContinuousHMM):
         calc. quantities in recursion  equation
         '''
         self.logger.debug("at time t={}".format(t) )          
-
-        currRefDur = self.durationMap[currState]
-        # take 30% more from dur from score 
-#         currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
-       
-        minDur = self.durationPdf.getMinRefDur(currRefDur)
-        endDur =  self.durationPdf.getMaxRefDur(currRefDur)
         
-        maxPhi, fromState,  maxDurIndexSlow =  self.getMaxPhi_slow(t, currState, minDur, endDur)
+        stateWithDuration = self.statesNetwork[currState]
+        minDur = stateWithDuration.getMinRefDur()
+        endDur = stateWithDuration.getMaxRefDur()
         
-        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
         
-        if not maxDurIndex == maxDurIndexSlow:
-            print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
-             
+        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi_slow(t, currState, minDur, endDur)
+        
+#         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
+        
+#         if not maxDurIndex == maxDurIndexSlow:
+#             print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
+#              
                 
         self.phi[t][currState] = maxPhi
         
@@ -302,7 +304,7 @@ class _DurationHMM(_ContinuousHMM):
     
 
         
-        for d in range(minDur, endDur):
+        for d in range(int(minDur), int(endDur)):
 
             currPhi = self.phi[t-d][fromState]
             whichTime =  t-d+1
@@ -334,7 +336,7 @@ class _DurationHMM(_ContinuousHMM):
 #             print "\t\t currPhi= {}".format(currPhi)  
 
         
-        waitLogLik = self.getWaitLogLik(whichDuration, currState)
+        waitLogLik = self.getWaitLogLikOneDur(whichDuration, currState)
 #         print  "\t\t waitLogLik= {}".format (waitLogLik) 
             
         sumObsProb += self.B_map[currState, whichTime]
@@ -357,15 +359,13 @@ class _DurationHMM(_ContinuousHMM):
         fromState =-1
         maxDurIndex = -1
         
-        currRefDur = self.durationMap[currState] # take 30% more from dur from score
-    #                 currRefDur = int(round(OVER_MAX_DUR_FACTOR * currRefDur))
-        
+        currStateWithDur = self.statesNetwork[currState]
         ####### boundaries check
-        minDur = self.durationPdf.getMinRefDur(currRefDur)
+        minDur = currStateWithDur.getMinRefDur()
         if t <= minDur: # min duration is before beginning of audio 
             phiStar = -Infinity
         else:
-            currReducedMaxDur = min(t, self.durationPdf.getMaxRefDur(currRefDur))
+            currReducedMaxDur = min(t, currStateWithDur.getMaxRefDur())
             phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
         return phiStar, fromState, maxDurIndex
     
@@ -429,7 +429,8 @@ class _DurationHMM(_ContinuousHMM):
         
         for currState in range(self.n):
             sumObsProb = 0
-            currRefMax = self.durationPdf.getMaxRefDur( self.durationMap[currState])
+            currStateWithDur  = self.statesNetwork[currState]
+            currRefMax = currStateWithDur.getMaxRefDur()
             currLogPi = numpy.log(self.pi[currState])
             
             for t in range(1,int(currRefMax)+1):
