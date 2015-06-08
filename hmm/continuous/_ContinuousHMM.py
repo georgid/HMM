@@ -5,10 +5,11 @@ Created on Nov 12, 2012
 '''
 
 import numpy
+import numpy as np
 import os
 import sys
 import logging
-from Cython.Compiler.Naming import self_cname
+# from sklearn.utils.extmath import logsumexp
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
@@ -79,7 +80,7 @@ class _ContinuousHMM(_BaseHMM):
         flag to load some decoding info from cached files, for example bMap and durationLookup table . 
         makes decoding faster 
         '''
-        self.usePersistentFiles = True
+        self.usePersistentFiles = False
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.DEBUG)
 
@@ -120,14 +121,36 @@ class _ContinuousHMM(_BaseHMM):
         self.logger.info("calculating obs probs..." )
 
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
+#         for j in xrange(self.n):
+#             logLiksForj = self._pdfAllFeatures(observations,j)
+#             
+#             # normalize  probs for each state to sum to 1
+#             liksForj = numpy.exp(logLiksForj)
+#             old_settings = numpy.seterr( under='raise')
+#             
+# #             if numpy.isinf(self.B_map).any():
+# #             print 'yes'
+# #             
+#             sumForj = numpy.sum(liksForj)
+#             
+#             liksForj /= sumForj
+#     
+# #             self.B_map[j,:] = logLiksForj
+#             self.B_map[j,:] = numpy.log(liksForj)
+            
+        #             if numpy.isinf(self.B_map).any():
+#             print 'yes'
+
         for j in xrange(self.n):
             logLiksForj = self._pdfAllFeatures(observations,j)
             
-            # normalize  probs for a state to sum to 1
-            liksForj = numpy.exp(logLiksForj)
-            sumForj = numpy.sum(liksForj)
-            liksForj /= sumForj
-            self.B_map[j,:] = numpy.log(liksForj)
+            # normalize  probs for each state to sum to 1 (in log domain)
+            sumLogLiks = logsumexp(logLiksForj)
+            logLiksForj -= sumLogLiks
+            self.B_map[j,:] = logLiksForj
+            
+            
+
 
     
     def _mapB_OLD(self, observations):
@@ -194,7 +217,11 @@ class _ContinuousHMM(_BaseHMM):
         
         bjt = 0
         for m in xrange(self.m):
-            self.Bmix_map[j][m][t] = self._pdf(Ot, self.means[j][m], self.covars[j][m])
+            
+            mean = self.means[j][m]
+            covar = self.covars[j][m]
+            
+            self.Bmix_map[j][m][t] = self._pdf(Ot, mean, covar)
             bjt += (self.w[j][m]*self.Bmix_map[j][m][t])
         return bjt
         
@@ -347,4 +374,44 @@ def _normalize(arr):
         for i in xrange(len(arr)):
             arr[i] = (arr[i]/summ)
         return arr
+    
+def logsumexp(arr, axis=0):
+    """Computes the sum of arr assuming arr is in the log domain.
+    
+    TAKEN FROM sklearn/utils/extmath.py
+    
+    Returns log(sum(exp(arr))) while minimizing the possibility of
+    over/underflow.
+    
+    Examples
+    --------
+
+    >>> import numpy as np
+    >>> from sklearn.utils.extmath import logsumexp
+    >>> a = np.arange(10)
+    >>> np.log(np.sum(np.exp(a)))
+    9.4586297444267107
+    >>> logsumexp(a)
+    9.4586297444267107
+    """
+    import sys
+    MINIMAL_PROB = sys.float_info.min
+    
+    arr = np.rollaxis(arr, axis)
+    # Use the max to normalize, as with the log this is what accumulates
+    # the less errors
+    vmax = arr.max(axis=0)
+    old_settings = np.seterr( under='raise')
+    try:
+        a = np.exp(arr - vmax)
+    except FloatingPointError:
+        old_settings = np.seterr( under='ignore')
+        a = np.exp(arr - vmax)
+        a[a==0] = MINIMAL_PROB
+    b = np.sum(a, axis=0)
+    out = np.log(b)
+    out += vmax
+    
+    old_settings = np.seterr( under='raise')
+    return out
     

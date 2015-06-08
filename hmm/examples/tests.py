@@ -151,9 +151,8 @@ def makeTestDurationHMM():
     pi = numpy.array(pitmp / sum(pitmp), dtype=numpy.double)
 
     gmmhmm = GMHMM(n,m,d,a,means,covars,w,pi,init_type='user',verbose=True)
-    
-    
     return    gmmhmm, d  
+
 
 def testRand_DurationHMM():
     '''
@@ -196,6 +195,7 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', DEVIATION_IN_SEC)
      
     observationFeatures = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
+
      
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
 #     lyricsWithModels.printWordsAndStates()

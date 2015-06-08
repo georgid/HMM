@@ -186,6 +186,9 @@ class _DurationHMM(_ContinuousHMM):
             sys.exit(NameError.message)
         
         self._mapB(observations)
+#         self._mapB_OLD(observations)
+    
+       
     
         # backpointer: how much duration waited in curr state
         self.chi = numpy.empty((lenObservations, self.n), dtype=self.precision)
@@ -212,13 +215,13 @@ class _DurationHMM(_ContinuousHMM):
         endDur = stateWithDuration.getMaxRefDur()
         
         
-        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi_slow(t, currState, minDur, endDur)
+#         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi_slow(t, currState, minDur, endDur)
         
-#         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
+        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
         
 #         if not maxDurIndex == maxDurIndexSlow:
 #             print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
-#              
+#               
                 
         self.phi[t][currState] = maxPhi
         
@@ -241,12 +244,21 @@ class _DurationHMM(_ContinuousHMM):
          
          # 1) add +1 to make it start from t-minDur 
         phisFrom = self.phi[t-maxDur+1:t-minDur+1,fromState]
+        reducedLengthDurationInterval =  len(phisFrom) # lets decode for this range of duration 
         
         # 2) wait logs
-        reducedLengthDurationInterval =  len(phisFrom) # lets decode for this range of duration 
-        offset =  len(self.durationPdf.liks) - reducedLengthDurationInterval -1
-        waitLogLiks = self.durationPdf.liks[offset:-1,0]
-        waitLogLiks = waitLogLiks.T
+        stateWithDuration = self.statesNetwork[currState]
+        
+        
+        if stateWithDuration.distributionType=='exponential':
+             waitLogLiks = numpy.zeros(phisFrom.shape)
+             for d in range (minDur, maxDur):
+                 waitLogLiks[d-minDur] = stateWithDuration.durationDistribution.getWaitLogLik(d) 
+        else:
+            offset =  len(stateWithDuration.durationDistribution.liks) - reducedLengthDurationInterval -1
+            waitLogLiks = stateWithDuration.durationDistribution.liks[offset:-1,0]
+            waitLogLiks = waitLogLiks.T
+        
         waitLogLiks  = waitLogLiks[::-1]
         
 #         3) sumObsProb 
@@ -267,7 +279,7 @@ class _DurationHMM(_ContinuousHMM):
         print "  VECTRO: state = {}, time = {}".format( currState, t ) 
         
         
-#         print  "\t\t phis= {}".format (phis)  
+        print  "\t\t phis= {}".format (phis)  
 #         print  "\t\t waitLogLik= {}".format (waitLogLiks) 
 #         print "\t\t sumObsProb= {}".format( sumObsProb) 
 

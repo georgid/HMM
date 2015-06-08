@@ -67,15 +67,15 @@ class StateWithDur(State):
  
     def getMaxRefDur(self):
         if self.distributionType == 'normal':
-            return self.durationDistribution.getMaxRefDur(self.durationInFrames)
+            return int(self.durationDistribution.getMaxRefDur(self.durationInFrames))
         else:
-            return self.durationDistribution.getMaxRefDur()
+            return int(self.durationDistribution.getMaxRefDur())
             
     def getMinRefDur(self):
         if self.distributionType == 'normal':
-            return self.durationDistribution.getMinRefDur(self.durationInFrames)
+            return int(self.durationDistribution.getMinRefDur(self.durationInFrames))
         else:
-            return self.durationDistribution.getMinRefDur()
+            return int(self.durationDistribution.getMinRefDur())
     
     def __str__(self):
         return self.phonemeName + "_"  + str(self.idxInPhoneme)
