@@ -44,7 +44,7 @@ class Path(object):
         while (t>duration and currState > 0):
             if duration <= 0:
                 print "Backtracking error: duration for state {} is {}. Should be > 0".format(currState, duration)
-                break
+                sys.exit()
             
             rawPath[t-duration+1:t+1] = currState
             
@@ -53,7 +53,7 @@ class Path(object):
             self.endingTimes.append(t)
 
             
-            ######update
+            ###### increment
             # pointer of coming state
             currState = psiBackPointer[t, currState]
             
@@ -65,7 +65,7 @@ class Path(object):
             duration = chiBackPointers[t,currState]
         rawPath[0:t+1] = currState
         
-        # DEBUG: 
+        # DEBUG: add last t
         self.durations.append(t)
         self.endingTimes.append(t)
         

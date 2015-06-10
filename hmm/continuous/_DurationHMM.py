@@ -13,6 +13,7 @@ from _ContinuousHMM import _ContinuousHMM
 from hmm.continuous.DurationPdf  import DurationPdf
 
 from hmm.continuous.ExpDurationPdf import ExpDurationPdf
+from Cython.Compiler.Naming import self_cname
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -24,8 +25,9 @@ if pathUtils not in sys.path: sys.path.append(pathUtils )
 
 from Utilz import writeListOfListToTextFile, writeListToTextFile
 
-# PATH_LOGS='/Users/joro/Downloads/'
-PATH_LOGS='.'
+# put intermediate output in examples dir
+PATH_LOGS= os.path.dirname(os.path.realpath(sys.argv[0]))
+# print 'PATH_LOGS is '  + PATH_LOGS
 
 
 
@@ -170,6 +172,9 @@ class _DurationHMM(_ContinuousHMM):
         
         writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi') 
             
+        numpy.savetxt(PATH_LOGS + '/chi', self.chi)
+        numpy.savetxt(PATH_LOGS + '/psi', self.psi)
+
         # return for backtracking
         return  self.chi, self.psi
     
@@ -187,8 +192,7 @@ class _DurationHMM(_ContinuousHMM):
         
         self._mapB(observations)
 #         self._mapB_OLD(observations)
-    
-       
+        
     
         # backpointer: how much duration waited in curr state
         self.chi = numpy.empty((lenObservations, self.n), dtype=self.precision)
@@ -215,13 +219,13 @@ class _DurationHMM(_ContinuousHMM):
         endDur = stateWithDuration.getMaxRefDur()
         
         
-#         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi_slow(t, currState, minDur, endDur)
+#         maxPhi, fromState,  maxDurIndexSlow =  self.getMaxPhi_slow(t, currState, minDur, endDur)
         
         maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
         
 #         if not maxDurIndex == maxDurIndexSlow:
 #             print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
-#               
+               
                 
         self.phi[t][currState] = maxPhi
         
@@ -253,8 +257,10 @@ class _DurationHMM(_ContinuousHMM):
         if stateWithDuration.distributionType=='exponential':
              waitLogLiks = numpy.zeros(phisFrom.shape)
              for d in range (minDur, maxDur):
-                 waitLogLiks[d-minDur] = stateWithDuration.durationDistribution.getWaitLogLik(d) 
-        else:
+                 # TODO: write a function that pre-computes the list of probs p_i(d). instead of redundantly computing it for each p_i(d)    
+                 waitLogLiks[d-minDur] = stateWithDuration.durationDistribution.getWaitLogLik(d)
+                 
+        else: # normal distribution
             offset =  len(stateWithDuration.durationDistribution.liks) - reducedLengthDurationInterval -1
             waitLogLiks = stateWithDuration.durationDistribution.liks[offset:-1,0]
             waitLogLiks = waitLogLiks.T
@@ -276,10 +282,10 @@ class _DurationHMM(_ContinuousHMM):
         # sum and get max
         phis = phisFrom + self.ALPHA * waitLogLiks + (1-self.ALPHA) * sumObsProb 
 
-        print "  VECTRO: state = {}, time = {}".format( currState, t ) 
+        self.logger.debug("  VECTRO: state = {}, time = {}".format( currState, t )) 
         
         
-        print  "\t\t phis= {}".format (phis)  
+#         print  "\t\t phis= {}".format (phis)  
 #         print  "\t\t waitLogLik= {}".format (waitLogLiks) 
 #         print "\t\t sumObsProb= {}".format( sumObsProb) 
 
@@ -404,7 +410,6 @@ class _DurationHMM(_ContinuousHMM):
       
         # select bigger (kappa and phi_star)
         for t in  range(1,int(self.R_MAX)):
-            self.logger.debug("at time t={}".format(t) )          
             # phi start makes sence only from second state 
             for currState in range(1, self.n): 
                 
@@ -415,8 +420,9 @@ class _DurationHMM(_ContinuousHMM):
                     self.phi[t,currState] = phiStar
                     self.psi[t,currState] = fromState 
                     self.chi[t,currState] = maxDurIndex
-                else:
-                    self.logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
+                    self.logger.info("time = {} currState = {}".format(t, currState) )  
+                else: # kappa is bigger
+#                     self.logger.debug( " kappa more than phi at time {} and state {}".format(t, currState))                        
                     self.phi[t, currState] = self.kappas[t, currState]
                     # kappas mean still at beginning state
                     self.psi[t,currState] = currState

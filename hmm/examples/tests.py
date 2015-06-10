@@ -1,20 +1,16 @@
-# -*- coding: utf-8 -*-
-
 '''
-Created on Nov 13, 2012
+Created on Jun 10, 2015
 
-@author: GuyZ
+@author: joro
 '''
-
 import numpy
-
 from hmm.continuous.GMHMM import GMHMM
-from hmm.discrete.DiscreteHMM import DiscreteHMM
+from hmm.discrete import DiscreteHMM
+from main import decode, loadSmallAudioFragment
 import os
 import sys
-from hmm.Parameters import Parameters, DEVIATION_IN_SEC
-from hmm.Path import Path
-
+from hmm.Parameters import Parameters
+from hmm.examples.main import backtrack
 
 # file parsing tools as external lib 
 parentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir,os.path.pardir )) 
@@ -26,29 +22,22 @@ if not pathAlignmentDuration in sys.path:
     
 from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
-from LyricsWithModels import LyricsWithModels
 from Decoder import Decoder
-from FeatureExtractor import loadMFCCs
-
-
-modelDIR = pathAlignmentDuration + '/model/'
-HMM_LIST_URI = modelDIR + '/monophones0'
-MODEL_URI = modelDIR + '/hmmdefs9gmm9iter'
-
-# parser of htk-build speech model
-pathHtkModelParser = os.path.join(parentDir, 'pathHtkModelParser')
-sys.path.append(pathHtkModelParser)
-from htk_converter import HtkConverter
-
 
 pathToComposition = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/'
 URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/safiye/01_Bakmiyor_1_zemin'
-# URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade'
 whichSection = 1
 
-pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/segah--sarki--curcuna--olmaz_ilac--haci_arif_bey/'
-URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/guelen/01_Olmaz_2_zemin'
-whichSection = 2
+# # test with synthesis
+# pathToComposition = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/'
+# URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade/04_Hamiyet_Yuceses_-_Bakmiyor_Cesm-i_Siyah_Feryade'
+# whichSection = 1
+
+
+# pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/segah--sarki--curcuna--olmaz_ilac--haci_arif_bey/'
+# URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/guelen/01_Olmaz_2_zemin'
+# whichSection = 2
+
 
 
 def test_simple():
@@ -170,9 +159,7 @@ def testRand_DurationHMM():
     observationFeatures = numpy.array((0.6 * numpy.random.random_sample((2,d)) - 0.3), dtype=numpy.double)
 #     observationFeatures = loadMFCCs(URIrecordingNoExt)
 
-
-    durGMMhmm.initDecodingParameters(observationFeatures)
-    chiBackPointer, psiBackPointer = durGMMhmm._viterbiForcedDur(observationFeatures)
+    decode(lyricsWithModels, observationFeatures)
     
         
 #     # test computePhiStar
@@ -181,52 +168,29 @@ def testRand_DurationHMM():
 #     phiStar, fromState, maxDurIndex = durGMMhmm.computePhiStar(currTime, currState)
 #     print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
 
-
-def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1):
-    '''
-    test duration-explicit HMM with audio features from real recording and htk-loaded model
-    asserts it works. no results provided 
-    '''
- 
-     
-
-    htkParser = HtkConverter()
-    htkParser.load(MODEL_URI, HMM_LIST_URI)
-    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', DEVIATION_IN_SEC)
-     
-    observationFeatures = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
-
-     
-    lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
-#     lyricsWithModels.printWordsAndStates()
+def test_backtrack(lyricsWithModels):
+    alpha = 0.97
+    ONLY_MIDDLE_STATE=False
+    params = Parameters(alpha, ONLY_MIDDLE_STATE)
+    decoder = Decoder(lyricsWithModels, params.ALPHA)
     
-    return lyricsWithModels, observationFeatures
+    psi = numpy.loadtxt('/psi')
+    chi = numpy.loadtxt('/chi')
+    backtrack(chi, psi, decoder)
 
-
-
-def decode(lyricsWithModels, observationFeatures):   
+def test_decoding(lyricsWithModels, observationFeatures):
     '''
-    same as decoder.decodeAudio() without the parts with WITH_Duration flag.
+    read initialized matrix from file. useful to test getMaxPhi with vector
     '''
     alpha = 0.97
     ONLY_MIDDLE_STATE=False
     params = Parameters(alpha, ONLY_MIDDLE_STATE)
     decoder = Decoder(lyricsWithModels, params.ALPHA)
     
-    #  decodes
-    decoder.hmmNetwork.initDecodingParameters(observationFeatures)
+    decoder.hmmNetwork.phi = numpy.loadtxt('/phi_init')
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
     
-    # backtrack
-    path =  Path(chiBackPointer, psiBackPointer)
-    detectedWordList = decoder.path2ResultWordList(path)
-         # DEBUG
-    
-    decoder.lyricsWithModels.printWordsAndStatesAndDurations(decoder.path)
-    path.printDurations()
-    
 
-    
 if __name__ == '__main__':    
     #test_simple()
     # test_rand()
@@ -238,3 +202,4 @@ if __name__ == '__main__':
     lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
     
     decode(lyricsWithModels, observationFeatures)
+#     test_backtrack(lyricsWithModels)

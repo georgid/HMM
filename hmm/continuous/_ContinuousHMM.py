@@ -82,7 +82,7 @@ class _ContinuousHMM(_BaseHMM):
         '''
         self.usePersistentFiles = False
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
+        # logger set in decoder 
 
     
     def setPersitentFiles(self, usePersistentFiles, URI_bmap):
