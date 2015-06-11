@@ -40,13 +40,15 @@ class ExpDurationPdf(object):
             return 
         
         # just in case
-#         elif d >= MAX_:
-#             return -Infinity
+        elif d > self.getMaxRefDur():
+            return -Infinity
         else:
 #             if refScoreDur > self.lookupTableLogLiks.shape[0]:
 #                 sys.exit("current score duration {} is bigger than max in list of lookup score durations {}".format( refScoreDur, self.lookupTableLogLiks.shape[0]))
             lik = (1-self.pWait) * pow(self.pWait, d-1) 
-            return  numpy.log(lik)
+            old_settings = numpy.seterr( under='raise')
+            out =  numpy.log(lik)
+            return out
     
     
 if __name__ == '__main__':

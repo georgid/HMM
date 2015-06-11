@@ -67,9 +67,11 @@ class StateWithDur(State):
  
     def getMaxRefDur(self):
         if self.distributionType == 'normal':
-            return int(self.durationDistribution.getMaxRefDur(self.durationInFrames))
+            a= int(self.durationDistribution.getMaxRefDur(self.durationInFrames))
         else:
-            return int(self.durationDistribution.getMaxRefDur())
+            a= int(self.durationDistribution.getMaxRefDur())
+#         print "durationInFrames {}".format(self.durationInFrames) 
+        return a
             
     def getMinRefDur(self):
         if self.distributionType == 'normal':

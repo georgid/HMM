@@ -74,7 +74,7 @@ class _ContinuousHMM(_BaseHMM):
         self.w = w
         self.min_std = min_std
 
-        self.reset(init_type=init_type)
+#         self.reset(init_type=init_type)
         
         '''
         flag to load some decoding info from cached files, for example bMap and durationLookup table . 

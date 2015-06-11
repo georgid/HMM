@@ -7,7 +7,7 @@ Created on Dec 8, 2014
 DEVIATION_IN_SEC = 0.1
 
 # max  duration for silence state (with exp distrib.) in seconds.
-MAX_SILENCE_DURATION = 0.2
+MAX_SILENCE_DURATION = 1.0
 
 class Parameters(object):
     '''

@@ -47,8 +47,6 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     asserts it works. no results provided 
     '''
  
-     
-
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
     lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', DEVIATION_IN_SEC)
@@ -62,21 +60,28 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     return lyricsWithModels, observationFeatures
 
 
-
-def decode(lyricsWithModels, observationFeatures):   
+def getDecoder(lyricsWithModels):
     '''
-    same as decoder.decodeAudio() without the parts with WITH_Duration flag.
+    helper routine to init decoder. change here parameters
     '''
     alpha = 0.97
     ONLY_MIDDLE_STATE=False
     params = Parameters(alpha, ONLY_MIDDLE_STATE)
     decoder = Decoder(lyricsWithModels, params.ALPHA)
+    return decoder
+
+
+def decode(lyricsWithModels, observationFeatures):   
+    '''
+    same as decoder.decodeAudio() without the parts with WITH_Duration flag.
+    '''
+    decoder = getDecoder(lyricsWithModels)
     
     
     #  decodes
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
-    
+#     
     backtrack(chiBackPointer, psiBackPointer, decoder)
 
 
@@ -89,7 +94,6 @@ def backtrack(chiBackPointer,psiBackPointer, decoder ):
     decoder.lyricsWithModels.printWordsAndStatesAndDurations(decoder.path)
     path.printDurations()
     
-
     
 # if __name__ == '__main__':    
 # 

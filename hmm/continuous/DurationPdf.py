@@ -11,6 +11,7 @@ from numpy.core.numeric import Infinity
 
 
 NUMFRAMESPERSEC = 100
+MINIMAL_PROB = sys.float_info.min
 
 
 
@@ -65,7 +66,10 @@ class DurationPdf(object):
                 sys.exit("d = 0 not implemented yet")
                 return 
             # used in kappa. -Inf because we never want kappa to be selected if over max region of duration
-            elif d < self.getMinRefDur(refScoreDur) or d > self.getMaxRefDur(refScoreDur):
+            elif d < self.getMinRefDur(refScoreDur):
+                return MINIMAL_PROB
+            # this never happens
+            elif  d > self.getMaxRefDur(refScoreDur):
                 return -Infinity
             else:
                 # note: allow negative startIdx to get proper index in liks

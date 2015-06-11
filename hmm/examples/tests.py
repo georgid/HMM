@@ -10,7 +10,7 @@ from main import decode, loadSmallAudioFragment
 import os
 import sys
 from hmm.Parameters import Parameters
-from hmm.examples.main import backtrack
+from hmm.examples.main import backtrack, getDecoder
 
 # file parsing tools as external lib 
 parentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir,os.path.pardir )) 
@@ -34,9 +34,9 @@ whichSection = 1
 # whichSection = 1
 
 
-# pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/segah--sarki--curcuna--olmaz_ilac--haci_arif_bey/'
-# URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/guelen/01_Olmaz_2_zemin'
-# whichSection = 2
+pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/segah--sarki--curcuna--olmaz_ilac--haci_arif_bey/'
+URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/guelen/01_Olmaz_2_zemin'
+whichSection = 2
 
 
 
@@ -169,10 +169,8 @@ def testRand_DurationHMM():
 #     print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
 
 def test_backtrack(lyricsWithModels):
-    alpha = 0.97
-    ONLY_MIDDLE_STATE=False
-    params = Parameters(alpha, ONLY_MIDDLE_STATE)
-    decoder = Decoder(lyricsWithModels, params.ALPHA)
+
+    decoder = getDecoder(lyricsWithModels)
     
     psi = numpy.loadtxt('/psi')
     chi = numpy.loadtxt('/chi')
@@ -182,14 +180,19 @@ def test_decoding(lyricsWithModels, observationFeatures):
     '''
     read initialized matrix from file. useful to test getMaxPhi with vector
     '''
-    alpha = 0.97
-    ONLY_MIDDLE_STATE=False
-    params = Parameters(alpha, ONLY_MIDDLE_STATE)
-    decoder = Decoder(lyricsWithModels, params.ALPHA)
+    decoder = getDecoder(lyricsWithModels)
     
     decoder.hmmNetwork.phi = numpy.loadtxt('/phi_init')
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
-    
+
+def test_initialization(lyricsWithModels, observationFeatures):
+    '''
+    just initialilzation step.
+    '''
+    decoder = getDecoder(lyricsWithModels)
+    #  init
+    decoder.hmmNetwork.initDecodingParameters(observationFeatures)
+   
 
 if __name__ == '__main__':    
     #test_simple()
@@ -203,3 +206,4 @@ if __name__ == '__main__':
     
     decode(lyricsWithModels, observationFeatures)
 #     test_backtrack(lyricsWithModels)
+#     test_initialization(lyricsWithModels, observationFeatures)

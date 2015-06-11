@@ -62,7 +62,7 @@ class GMHMM(_DurationHMM):
         get the pdf of a series of features for model j
         uses sciKit learn's GMM class
         '''
-        old_settings = numpy.seterr( under='raise')
+#         old_settings = numpy.seterr(under='warn')
 
         (logprob,responsibilities) = self.GMMs[j].score_samples(observations)
         return logprob  
