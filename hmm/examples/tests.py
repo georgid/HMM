@@ -10,7 +10,8 @@ from main import decode, loadSmallAudioFragment
 import os
 import sys
 from hmm.Parameters import Parameters
-from hmm.examples.main import backtrack, getDecoder
+from hmm.examples.main import backtrack, getDecoder, decodeWithOracle
+from eyed3.utils import LoggingAction
 
 # file parsing tools as external lib 
 parentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir,os.path.pardir )) 
@@ -19,10 +20,14 @@ print parentDir
 pathAlignmentDuration = os.path.join(parentDir, 'AlignmentDuration')
 if not pathAlignmentDuration in sys.path:
     sys.path.append(pathAlignmentDuration)
-    
+
 from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
 from Decoder import Decoder
+
+
+from PraatVisualiser import tokenList2TabFile
+from Utilz import readListOfListTextFile
 
 pathToComposition = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/'
 URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/safiye/01_Bakmiyor_1_zemin'
@@ -38,7 +43,17 @@ pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-t
 URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/guelen/01_Olmaz_2_zemin'
 whichSection = 2
 
+pathToComposition ='/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--curcuna--kimseye_etmem--kemani_sarkis_efendi/'
+URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/voxforge/myScripts/HMMDuration/hmm/examples/KiseyeZeminPhoneLevel_2_zemin'
+whichSection = 2
 
+import logging
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
+pathEvaluation = os.path.join(parentDir, 'AlignmentEvaluation')
+sys.path.append(pathEvaluation)
+from AccuracyEvaluator import _evalAccuracy
 
 def test_simple():
     n = 2
@@ -172,18 +187,26 @@ def test_backtrack(lyricsWithModels):
 
     decoder = getDecoder(lyricsWithModels)
     
-    psi = numpy.loadtxt('/psi')
-    chi = numpy.loadtxt('/chi')
+    psi = numpy.loadtxt('psi')
+    chi = numpy.loadtxt('chi')
     backtrack(chi, psi, decoder)
 
-def test_decoding(lyricsWithModels, observationFeatures):
+
+def test_decoding(pathToComposition, whichSection):
     '''
     read initialized matrix from file. useful to test getMaxPhi with vector
     '''
+    
+    withSynthesis = True
+    lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
+    lyricsWithModels, observationFeatures, URIRecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    
     decoder = getDecoder(lyricsWithModels)
     
-    decoder.hmmNetwork.phi = numpy.loadtxt('/phi_init')
-    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
+    decoder.hmmNetwork.phi = numpy.loadtxt('phi_init')
+    lenObs = len(observationFeatures)
+    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObs)
+
 
 def test_initialization(lyricsWithModels, observationFeatures):
     '''
@@ -192,7 +215,39 @@ def test_initialization(lyricsWithModels, observationFeatures):
     decoder = getDecoder(lyricsWithModels)
     #  init
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
-   
+
+
+def test_oracle(URIrecordingNoExt, pathToComposition, whichSection):
+    withSynthesis = False
+    lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
+    
+    if logger.level == logging.DEBUG:
+        lyrics.printPhonemeNetwork()
+    
+    fromTs = 0; toTs = 20.88
+    fromPhonemeIdx  = 1; toPhonemeIdx = 42
+    tokenLevelAlignedSuffix = '.syllables'
+    
+    detectedAlignedfileName = URIrecordingNoExt + tokenLevelAlignedSuffix
+    if os.path.isfile(detectedAlignedfileName):
+        print "{} already exists. No decoding".format(detectedAlignedfileName)
+        detectedTokenList  = readListOfListTextFile(detectedAlignedfileName)
+        
+    else:
+        detectedTokenList = decodeWithOracle(lyrics, URIrecordingNoExt, fromTs, toTs, fromPhonemeIdx, toPhonemeIdx)
+          
+        detectedAlignedfileName = URIrecordingNoExt + tokenLevelAlignedSuffix
+        if not os.path.isfile(detectedAlignedfileName):
+            detectedAlignedfileName =  tokenList2TabFile(detectedTokenList, URIrecordingNoExt, tokenLevelAlignedSuffix)
+            
+        
+    ANNOTATION_EXT = '.TextGrid'
+    evalLevel = 2
+    correctDuration, totalDuration = _evalAccuracy(URIrecordingNoExt + ANNOTATION_EXT, detectedTokenList, evalLevel, -1, -1 )
+    print "accuracy= {}".format(correctDuration / totalDuration)
+    
+    return detectedTokenList
+    
 
 if __name__ == '__main__':    
     #test_simple()
@@ -200,10 +255,14 @@ if __name__ == '__main__':
     #test_discrete()
     # testRand_DurationHMM()
     
-    withSynthesis = False
-    lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-    lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
     
-    decode(lyricsWithModels, observationFeatures)
+    
+    
+#     decode(lyricsWithModels, observationFeatures)
+    
 #     test_backtrack(lyricsWithModels)
 #     test_initialization(lyricsWithModels, observationFeatures)
+
+   
+#     test_decoding(pathToComposition, whichSection)

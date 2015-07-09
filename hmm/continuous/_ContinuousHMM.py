@@ -9,6 +9,8 @@ import numpy as np
 import os
 import sys
 import logging
+from hmm.continuous.DurationPdf import NUMFRAMESPERSEC
+from cookielib import logger
 # from sklearn.utils.extmath import logsumexp
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
@@ -82,7 +84,11 @@ class _ContinuousHMM(_BaseHMM):
         '''
         self.usePersistentFiles = False
         self.logger = logging.getLogger(__name__)
-        # logger set in decoder 
+        # other logger set in decoder 
+        loggingLevel = logging.INFO
+#         loggingLevel = logging.WARNING
+
+        self.logger.setLevel(loggingLevel)
 
     
     def setPersitentFiles(self, usePersistentFiles, URI_bmap):
@@ -113,6 +119,46 @@ class _ContinuousHMM(_BaseHMM):
                         covars_tmp[i][j] = self.covars[i][j]
             self.covars = covars_tmp
     
+    def _mapBOracle(self,  lyricsWithModelsOracle, lenObservations, fromTs):
+        self.B_map = numpy.zeros( (self.n, lenObservations), dtype=self.precision)
+        self.B_map.fill(MINIMAL_PROB)
+        
+        offSet = lyricsWithModelsOracle.phonemesNetwork[0].beginTs - fromTs
+        import math
+        startDurInFrames =  int(math.floor(offSet * NUMFRAMESPERSEC)) 
+
+        
+        for phoneme_ in lyricsWithModelsOracle.phonemesNetwork:
+        
+            # print phoneme
+            
+            # get total dur of phoneme's states
+            countPhonemeFirstState = phoneme_.numFirstState
+            startDurInFrames =  int(math.floor( (phoneme_.beginTs - fromTs) * NUMFRAMESPERSEC))
+
+            self.logger.debug("phoneme: {} with start dur: {} and duration: {}".format( phoneme_.ID, startDurInFrames, phoneme_.durationInNumFrames ))
+
+            for nextState in range(phoneme_.getNumStates()):
+                        stateWithDur = lyricsWithModelsOracle.statesNetwork[countPhonemeFirstState + nextState]
+                        self.logger.debug("\tstate {} duration {}".format( stateWithDur.__str__(),  stateWithDur.getDurationInFrames()))
+                        
+                        finalDur = startDurInFrames + stateWithDur.getDurationInFrames()
+                        
+                        self.B_map[countPhonemeFirstState + nextState, startDurInFrames: finalDur+1 ] = 1
+                        startDurInFrames =  finalDur+1  
+            #TODO: silence at beginning and end
+        
+        self.B_map = numpy.log( self.B_map) 
+        self._normalizeBByMaxLog()
+        
+        if self.logger.level == logging.INFO:
+            import matplotlib.pyplot as plt
+#             plt.imshow(self.B_map, extent=[0, 100, 0, 100], interpolation='none')
+            plt.imshow(self.B_map, interpolation='none')
+
+            plt.show()
+        
+         
     def _mapB(self, observations):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
@@ -145,12 +191,16 @@ class _ContinuousHMM(_BaseHMM):
             logLiksForj = self._pdfAllFeatures(observations,j)
             
             # normalize  probs for each state to sum to 1 (in log domain)
-            sumLogLiks = logsumexp(logLiksForj)
-            logLiksForj -= sumLogLiks
+#             sumLogLiks = logsumexp(logLiksForj)
+#             logLiksForj -= sumLogLiks
             self.B_map[j,:] = logLiksForj
-            
-            
-
+             
+        self._normalizeBByMaxLog()
+        
+        if self.logger.level == logging.INFO:
+            import matplotlib.pyplot as plt
+            plt.imshow(self.B_map, extent=[0, 100, 0, 100])
+            plt.show()
 
     
     def _mapB_OLD(self, observations):
@@ -337,17 +387,23 @@ class _ContinuousHMM(_BaseHMM):
 
     def _normalizeBByMax(self):
         '''
-        Helper method to normalize probabilities. Divide them by max in array.
-        does not make difference
+        Divide them by max in array. decrease chance of underflow
+        seems it does not make difference on performance.
+        in non-log domain
         '''
         
-        self.logger.debug("normalizing ...")
+        self.logger.debug("normalizing by max ...")
 
         maxProb = numpy.amax(self.B_map)
         for j in xrange(self.B_map.shape[0]):
             for t in xrange(self.B_map.shape[1]):
                 self.B_map[j][t] = self.B_map[j][t] / maxProb
     
+    def _normalizeBByMaxLog(self):
+        self.logger.info("normalizing by max in log domain...")
+        maxProb = numpy.amax(self.B_map)
+        self.B_map -= maxProb
+        
     
     def _pdf(self,x,mean,covar):
         '''

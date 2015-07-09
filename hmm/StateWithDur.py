@@ -50,7 +50,7 @@ class StateWithDur(State):
         '''
         for normal distrib
         '''
-        self.durationInFrames = durationInFrames
+        self.durationInFrames = int(durationInFrames)
         
     def getDurationInFrames(self):
         

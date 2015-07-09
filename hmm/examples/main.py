@@ -12,7 +12,16 @@ from hmm.continuous.GMHMM import GMHMM
 from hmm.discrete.DiscreteHMM import DiscreteHMM
 import os
 import sys
-from hmm.Parameters import Parameters, DEVIATION_IN_SEC
+from hmm.Parameters import Parameters
+from fpformat import decoder
+from hmm.continuous.DurationPdf import NUMFRAMESPERSEC
+
+parentParentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir, os.path.pardir)) 
+pathJingju = os.path.join(parentParentDir, 'Jingju')
+
+if pathJingju not in sys.path:
+    sys.path.append(pathJingju )
+from ParametersAlgo import ParametersAlgo
 from hmm.Path import Path
 
 
@@ -49,16 +58,42 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
  
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
-    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', DEVIATION_IN_SEC)
+    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
      
-    observationFeatures = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
+    observationFeatures, URIRecordingChunk = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
 
      
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
+#     lyricsWithModels.printPhonemeNetwork()
+
 #     lyricsWithModels.printWordsAndStates()
     
     return lyricsWithModels, observationFeatures
 
+
+def decodeWithOracle(lyrics, URIrecordingNoExt, fromTs, toTs, fromPhonemeIdx, toPhonemeIdx):
+    '''
+    instead map set as oracle from annotation
+    '''
+    
+    withSynthesis = 0
+    htkParser = HtkConverter()
+    htkParser.load(MODEL_URI, HMM_LIST_URI)
+    lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
+                                        
+    lyricsWithModelsORacle.setPhonemeDurs( URIrecordingNoExt + '.TextGrid', fromPhonemeIdx, toPhonemeIdx)
+#     lyricsWithModelsORacle.printPhonemeNetwork()
+    
+    lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+
+    decoder = getDecoder(lyricsWithModels)
+    
+    lenObservations = decoder.hmmNetwork.initDecodingParametersOracle(lyricsWithModelsORacle, URIrecordingNoExt, fromTs, toTs)
+    
+    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObservations)
+#     
+    detectedWordList = backtrack(chiBackPointer, psiBackPointer, decoder)
+    return detectedWordList
 
 def getDecoder(lyricsWithModels):
     '''
@@ -77,10 +112,10 @@ def decode(lyricsWithModels, observationFeatures):
     '''
     decoder = getDecoder(lyricsWithModels)
     
-    
     #  decodes
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
-    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(observationFeatures)
+    lenObs = len(observationFeatures)
+    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObs)
 #     
     backtrack(chiBackPointer, psiBackPointer, decoder)
 
@@ -93,7 +128,7 @@ def backtrack(chiBackPointer,psiBackPointer, decoder ):
     
     decoder.lyricsWithModels.printWordsAndStatesAndDurations(decoder.path)
     path.printDurations()
-    
+    return detectedWordList
     
 # if __name__ == '__main__':    
 # 

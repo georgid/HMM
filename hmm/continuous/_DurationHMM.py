@@ -6,14 +6,17 @@ Created on Oct 31, 2014
 import numpy
 import os
 import sys
+import math
 
 from numpy.core.numeric import Infinity
 
 from _ContinuousHMM import _ContinuousHMM
-from hmm.continuous.DurationPdf  import DurationPdf
+from hmm.continuous.DurationPdf  import DurationPdf, NUMFRAMESPERSEC
 
 from hmm.continuous.ExpDurationPdf import ExpDurationPdf
-from Cython.Compiler.Naming import self_cname
+
+import essentia.standard
+import logging
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -161,17 +164,22 @@ class _DurationHMM(_ContinuousHMM):
         
         # normal distrib
         scoreDurCurrState = self.durationMap[whichState]
-        return stateWithDuration.durationDistribution.getWaitLogLik(d, scoreDurCurrState)
+        return stateWithDuration.durationDistribution.getWaitLogLik(d+1, scoreDurCurrState)
          
     
-    def _viterbiForcedDur(self, observations):
+    def _viterbiForcedDur(self, lenObservations):
         # sanity check. make sure durations are init from score
       
         
         print "decoding..."
-        for t in range(self.R_MAX,len(observations)):                          
+        for t in range(self.R_MAX,lenObservations):                          
             for currState in xrange(1, self.n):
-                self._calcCurrStatePhi(t, currState) # get max duration quantities
+                maxPhi, fromState, maxDurIndex = self._calcCurrStatePhi(t, currState) # get max duration quantities
+                self.phi[t][currState] = maxPhi
+        
+                self.psi[t][currState] = fromState
+        
+                self.chi[t][currState] = maxDurIndex
         
         writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi') 
             
@@ -181,7 +189,48 @@ class _DurationHMM(_ContinuousHMM):
         # return for backtracking
         return  self.chi, self.psi
     
-
+    
+    
+    
+    
+    def initDecodingParametersOracle(self, lyricsWithModels, URIRecordingNoExt, fromTs, toTs):
+        '''
+        helper method to init all params
+        '''
+        
+#         sampleRate = 44100
+#         URI_wav = URIRecordingNoExt + '.wav'
+#
+#         loader = essentia.standard.MonoLoader(filename = URI_wav, sampleRate = sampleRate)
+#         audio = loader()
+#         print len(audio)
+#         durInSeconds = len(audio) / float(sampleRate) 
+#         
+        durInSeconds = toTs - fromTs
+        lenObservations = int(math.floor(durInSeconds * float(NUMFRAMESPERSEC)))
+        
+        try: 
+            self.durationMap
+        except NameError:
+            sys.exit(NameError.message)
+        
+        self._mapBOracle( lyricsWithModels, lenObservations, fromTs)
+#         self._mapB_OLD(observations)
+        
+    
+        # backpointer: how much duration waited in curr state
+        self.chi = numpy.empty((lenObservations, self.n), dtype=self.precision)
+        self.chi.fill(-1)
+       
+        # backpointer: prev. state
+        self.psi = numpy.empty((lenObservations, self.n), dtype=self.precision)
+        self.psi.fill(-1)
+   
+        # init. t< R_MAX
+        if (self.R_MAX >= lenObservations):
+            sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
+        self._initBeginingPhis(lenObservations)
+        return lenObservations
     
     def initDecodingParameters(self, observations):
         '''
@@ -206,9 +255,9 @@ class _DurationHMM(_ContinuousHMM):
         self.psi.fill(-1)
    
         # init. t< R_MAX
-        self._initBeginingPhis(lenObservations)
         if (self.R_MAX >= lenObservations):
             sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
+        self._initBeginingPhis(lenObservations)
     
     
     def _calcCurrStatePhi(self,  t, currState):
@@ -221,6 +270,12 @@ class _DurationHMM(_ContinuousHMM):
         minDur = stateWithDuration.getMinRefDur()
         endDur = stateWithDuration.getMaxRefDur()
         
+
+        if t <= minDur: # min duration is before beginning of audio. used in init         # never happens for t>self.R_MAX
+            return -Infinity, -1, -1
+        
+        endDur = min(t, endDur)         # reducedMaxDur. never happens for t>self.R_MAX
+
         
 #         maxPhi, fromState,  maxDurIndexSlow =  self.getMaxPhi_slow(t, currState, minDur, endDur)
         
@@ -228,16 +283,29 @@ class _DurationHMM(_ContinuousHMM):
         
 #         if not maxDurIndex == maxDurIndexSlow:
 #             print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
-               
+#                
                 
-        self.phi[t][currState] = maxPhi
-        
-        self.psi[t][currState] = fromState
-        
-        self.chi[t][currState] = maxDurIndex
+        return maxPhi, fromState, maxDurIndex 
                 
            
-
+    def computePhiStar(self, t, currState):
+        '''
+        boundaries check for minDur and endDur makes PhiStar different from phi 
+        '''
+        
+        fromState =-1
+        maxDurIndex = -1
+        
+        currStateWithDur = self.statesNetwork[currState]
+        ####### boundaries check
+        minDur = currStateWithDur.getMinRefDur()
+        if t <= minDur: # min duration is before beginning of audio 
+            phiStar = -Infinity
+        else:
+            currReducedMaxDur = min(t, currStateWithDur.getMaxRefDur())
+            phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
+        return phiStar, fromState, maxDurIndex
+        
  
     
     def getMaxPhi(self,t,currState,minDur,maxDur):
@@ -264,8 +332,8 @@ class _DurationHMM(_ContinuousHMM):
                  waitLogLiks[d-minDur] = stateWithDuration.durationDistribution.getWaitLogLik(d)
                  
         else: # normal distribution
-            offset =  len(stateWithDuration.durationDistribution.liks) - reducedLengthDurationInterval -1
-            waitLogLiks = stateWithDuration.durationDistribution.liks[offset:-1,0]
+            offset =  len(stateWithDuration.durationDistribution.liks) - reducedLengthDurationInterval
+            waitLogLiks = stateWithDuration.durationDistribution.liks[offset:,0]
             waitLogLiks = waitLogLiks.T
         
         waitLogLiks  = waitLogLiks[::-1]
@@ -343,6 +411,7 @@ class _DurationHMM(_ContinuousHMM):
         
         return maxPhi, fromState, maxDurIndex    
     
+    
     def _calcUpdateQuantity(self, whichTime, whichDuration, currState, currPhi, sumObsProb):
         '''
         @param whichTime: needed to take the corresponding b_i(O_t)
@@ -401,16 +470,19 @@ class _DurationHMM(_ContinuousHMM):
             # phi star makes sence only from second state 
             for t in  range(1,int(self.R_MAX)):
                 
+#                 phiStar, fromState, maxDurIndex = self._calcCurrStatePhi(t, currState)
                 phiStar, fromState, maxDurIndex = self.computePhiStar(t, currState)
+
                 currKappa = self.kappas[t,currState]
                 
                
-                if phiStar == -Infinity and currKappa == -Infinity:  # sanity check
-                    self.logger.warning("both phiStar and kappa are infinity for time {} and state {}".format( t, currState))
-                    sys.exit()
+#                 if phiStar == -Infinity and currKappa == -Infinity and currState != 1 and currState != 2 and currState != 3:  # sanity check
+#                     # kappas are -inf for t > currState.maxRefDur. phis is -inf only at state=1, becuase currState-1 is initialized with kappas, which can be -inf 
+#                     self.logger.warning("both phiStar and kappa are infinity for time {} and state {}".format( t, currState))
+#                     sys.exit()
                     
                 # take bigger : eq:deltaStarOrKappa
-                elif  phiStar >= currKappa:
+                if  phiStar >= currKappa:
                     self.phi[t,currState] = phiStar
                     self.psi[t,currState] = fromState 
                     self.chi[t,currState] = maxDurIndex
@@ -418,7 +490,7 @@ class _DurationHMM(_ContinuousHMM):
                 else: # kappa is bigger
                     
                     maxRefDur = self.statesNetwork[currState].getMaxRefDur()
-                    self.logger.warning( " kappa {} more than phi {} at time {} and state {}\n maxRefDur is {}".format(currKappa, phiStar, t, currState, maxRefDur))                        
+                    self.logger.debug( " kappa {} more than phi {} at time {} and state {}\n maxRefDur is {}".format(currKappa, phiStar, t, currState, maxRefDur))                        
                     
                     if t > maxRefDur:  # sanity check
                         self.logger.warning(" non-real kappa at time {} and state {}".format( t, currState))
@@ -429,26 +501,9 @@ class _DurationHMM(_ContinuousHMM):
                     self.chi[t,currState] = t
                     
         
-        writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi_init') 
+        writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi_init_2') 
     
-    def computePhiStar(self, t, currState):
-        '''
-        boundaries check for minDur and endDur makes PhiStar different from phi 
-        '''
-        
-        fromState =-1
-        maxDurIndex = -1
-        
-        currStateWithDur = self.statesNetwork[currState]
-        ####### boundaries check
-        minDur = currStateWithDur.getMinRefDur()
-        if t <= minDur: # min duration is before beginning of audio 
-            phiStar = -Infinity
-        else:
-            currReducedMaxDur = min(t, currStateWithDur.getMaxRefDur())
-            phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
-        return phiStar, fromState, maxDurIndex
-        
+
         
     def _initKappas(self, lenObservations):
         '''
@@ -460,7 +515,7 @@ class _DurationHMM(_ContinuousHMM):
         
         print 'init kappas...'
         self.kappas = numpy.empty((self.R_MAX,self.n), dtype=self.precision)
-        # if some kappa[t, state] = -INFINITY and phi[t,state] = -INFINITY, no initialization is possilbe (e.g. not possible to choose max btw kappa and phi)
+        # kappa[t, state] = -INFINITY allows phi to be selcted instead of kappa. we forbid this kappa. 
         self.kappas.fill(-numpy.Infinity)
         
         for currState in range(self.n):

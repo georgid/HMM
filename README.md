@@ -23,8 +23,12 @@ Open concerns:
 Duration-model extension 
 =========================
 
-Added fixes for
-* underflow due to multiplication of probabilities is handled by sum log(probs)
+* fixed underflow due to multiplication of probabilities ( handled by sum log(probs) )
+
+* posteriors of GMM mixtures are computed using scikit learn 
+
+* added oracle test: Oracle test allow to check if model is able to perform perfect alignment on ground truth timestamps of phonemes (e.g. replace observation posteriors with 1-s from ground truth) (described more here: http://www.terasoft.com.tw/conf/ismir2014/proceedings/T050_126_Paper.pdf ) 
+hmm.examples.tests.test_oracle() - needs phoneme-level annotation
 
 TODO: 
 use _ContinuousHMM.usePersistentProbs to store persistently <fileName>.durationsMap to save time Now computed each time
