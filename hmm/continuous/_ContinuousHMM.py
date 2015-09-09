@@ -10,22 +10,22 @@ import os
 import sys
 import logging
 from hmm.continuous.DurationPdf import NUMFRAMESPERSEC
-from cookielib import logger
 # from sklearn.utils.extmath import logsumexp
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
 
 hmmDir = os.path.join(parentDir, 'HMM/hmm')
 if hmmDir not in sys.path: sys.path.append(parentDir)
-
 from hmm._BaseHMM import _BaseHMM
 
 
-parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
-pathUtils = os.path.join(parentDir, 'utilsLyrics')
-if pathUtils not in sys.path: sys.path.append(pathUtils )
 
+workspaceDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
+pathUtils = os.path.join(workspaceDir, 'utilsLyrics')
+if pathUtils not in sys.path: sys.path.append(pathUtils )
 from Utilz import writeListOfListToTextFile
+
+
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -89,6 +89,8 @@ class _ContinuousHMM(_BaseHMM):
 #         loggingLevel = logging.WARNING
 
         self.logger.setLevel(loggingLevel)
+        
+
 
     
     def setPersitentFiles(self, usePersistentFiles, URI_bmap):
@@ -96,7 +98,8 @@ class _ContinuousHMM(_BaseHMM):
         self.usePersistentFiles =  usePersistentFiles
         self.PATH_BMAP = URI_bmap
 
-        
+    def setNonVocal(self, listNonVocalFragments):
+        self.listNonVocalFragments = listNonVocalFragments     
     
     def reset(self,init_type='uniform'):
         '''
@@ -119,7 +122,27 @@ class _ContinuousHMM(_BaseHMM):
                         covars_tmp[i][j] = self.covars[i][j]
             self.covars = covars_tmp
     
+    def getSilentStates(self):
+        '''
+        return indices for non-vocal states
+        '''
+        indices = []
+        for currIdx, stateWithDur in enumerate(self.statesNetwork):
+            if stateWithDur.phonemeName == 'sil' or stateWithDur.phonemeName == 'sp':
+                indices.append(currIdx)
+        return indices
+    
+    
     def _mapBOracle(self,  lyricsWithModelsOracle, lenObservations, fromTs):
+        '''
+        loop though phoneme states from  lyricsWithModelsOracle. 
+        For each one, for the frames of its duration assign 1 in B_map and
+         
+        @param lyricsWithModelsOracle - lyrics read from annotation ground truth
+        @param fromTs - time to start at
+        '''
+        
+        # init matrix to be zero
         self.B_map = numpy.zeros( (self.n, lenObservations), dtype=self.precision)
         self.B_map.fill(MINIMAL_PROB)
         
@@ -133,73 +156,87 @@ class _ContinuousHMM(_BaseHMM):
             # print phoneme
             
             # get total dur of phoneme's states
-            countPhonemeFirstState = phoneme_.numFirstState
+            counterCurrPhonemeFirstState = phoneme_.numFirstState
             startDurInFrames =  int(math.floor( (phoneme_.beginTs - fromTs) * NUMFRAMESPERSEC))
 
             self.logger.debug("phoneme: {} with start dur: {} and duration: {}".format( phoneme_.ID, startDurInFrames, phoneme_.durationInNumFrames ))
 
-            for nextState in range(phoneme_.getNumStates()):
-                        stateWithDur = lyricsWithModelsOracle.statesNetwork[countPhonemeFirstState + nextState]
+            for whichFollowingState in range(phoneme_.getNumStates()):
+                        counterWhichState = counterCurrPhonemeFirstState + whichFollowingState
+                        stateWithDur = lyricsWithModelsOracle.statesNetwork[counterWhichState]
                         self.logger.debug("\tstate {} duration {}".format( stateWithDur.__str__(),  stateWithDur.getDurationInFrames()))
                         
-                        finalDur = startDurInFrames + stateWithDur.getDurationInFrames()
+                        finalDurInFrames = startDurInFrames + stateWithDur.getDurationInFrames()
                         
-                        self.B_map[countPhonemeFirstState + nextState, startDurInFrames: finalDur+1 ] = 1
-                        startDurInFrames =  finalDur+1  
+                        self.B_map[counterWhichState, startDurInFrames: finalDurInFrames+1 ] = 1
+                        startDurInFrames =  finalDurInFrames+1  
             #TODO: silence at beginning and end
         
         self.B_map = numpy.log( self.B_map) 
         self._normalizeBByMaxLog()
         
-        if self.logger.level == logging.INFO:
-            import matplotlib.pyplot as plt
-#             plt.imshow(self.B_map, extent=[0, 100, 0, 100], interpolation='none')
-            plt.imshow(self.B_map, interpolation='none')
-
-            plt.show()
+        if self.logger.level == logging.DEBUG:
+            self.visualizeBMap()
+    
         
-         
     def _mapB(self, observations):
         '''
         Required implementation for _mapB. Refer to _BaseHMM for more details.
+        with non-vocal
         '''
-        
         self.logger.info("calculating obs probs..." )
-
         self.B_map = numpy.zeros( (self.n,len(observations)), dtype=self.precision)
-#         for j in xrange(self.n):
-#             logLiksForj = self._pdfAllFeatures(observations,j)
-#             
-#             # normalize  probs for each state to sum to 1
-#             liksForj = numpy.exp(logLiksForj)
-#             old_settings = numpy.seterr( under='raise')
-#             
-# #             if numpy.isinf(self.B_map).any():
-# #             print 'yes'
-# #             
-#             sumForj = numpy.sum(liksForj)
-#             
-#             liksForj /= sumForj
-#     
-# #             self.B_map[j,:] = logLiksForj
-#             self.B_map[j,:] = numpy.log(liksForj)
-            
-        #             if numpy.isinf(self.B_map).any():
-#             print 'yes'
-
+         
         for j in xrange(self.n):
             logLiksForj = self._pdfAllFeatures(observations,j)
             
-            # normalize  probs for each state to sum to 1 (in log domain)
+# normalize  probs for each state to sum to 1 (in log domain)
 #             sumLogLiks = logsumexp(logLiksForj)
 #             logLiksForj -= sumLogLiks
             self.B_map[j,:] = logLiksForj
-             
+        
+#         self.visualizeBMap()
+
+         
+        #### vocal/non-vocal     
+
+        # get non-vocal states 
+        indicesSilent = self.getSilentStates() 
+         
+        # assign 1-s to non-vocal states
+#         inputFile = '/Users/joro/Documents/Phd/UPF/voxforge/myScripts/segmentation/data/laoshengxipi02.wav'
+#         detectedSegments, outputFile, windowLen = doitSegmentVJP(inputFile)
+        
+        # if listNonVocalNotdefinednot defined
+        if hasattr(self, 'listNonVocalFragments'):
+#           if listNonVocalNotdefined empty it does not change matrix
+            for nonVocalFrag in self.listNonVocalFragments:
+            
+    #             print "start: " + str(segStart[i]) + "\tend: " + str((segStart[i] + segDuration[i])) + "\t" + str(segPred[i]) 
+            
+                # non-vocal regions
+                
+                startFrame = int(NUMFRAMESPERSEC * nonVocalFrag[0] )
+                endFrame = int(NUMFRAMESPERSEC * nonVocalFrag[1] )
+                
+                self.B_map[:,startFrame:endFrame+1] =  numpy.log(MINIMAL_PROB)
+                self.B_map[numpy.array([indicesSilent]),startFrame:endFrame+1] =  numpy.log(1)
+#                 self.visualizeBMap()
+
+                 
         self._normalizeBByMaxLog()
         
-        if self.logger.level == logging.INFO:
+#         if self.logger.level == logging.INFO:
+        self.visualizeBMap()
+         
+       
+
+    def visualizeBMap(self): 
             import matplotlib.pyplot as plt
-            plt.imshow(self.B_map, extent=[0, 100, 0, 100])
+            plt.imshow(self.B_map, extent=[0, 100, 0, 100], interpolation='none')
+            plt.imshow(self.B_map, interpolation='none')
+            
+            plt.colorbar()
             plt.show()
 
     
@@ -470,4 +507,18 @@ def logsumexp(arr, axis=0):
     
     old_settings = np.seterr( under='raise')
     return out
+
+    
+if __name__ == '__main__':
+     
+#     inputFile = '/Users/joro/Documents/Phd/UPF/voxforge/myScripts/segmentation/data/laoshengxipi02.wav'
+#     detectedSegments, outputFile, windowSize = doitSegmentVJP(inputFile)
+    
+    VJPpredictionFile = '/Users/joro/Documents/Phd/UPF/voxforge/myScripts/segmentationShuo/data/output_VJP_laoshengxipi02/predictionVJP.txt'
+    smoothedPred = parsePrediction(VJPpredictionFile)
+    windowLen = 0.25
+    segStart, segDuration, segPred = prepareAnnotation(smoothedPred,  windowLen)
+    for i in range(len(segStart)):
+        print "start: " + str(segStart[i]) + "\tend: " + str((segStart[i] + segDuration[i])) + "\t" + str(segPred[i]) 
+        
     

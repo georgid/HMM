@@ -218,13 +218,18 @@ def test_initialization(lyricsWithModels, observationFeatures):
 
 
 def test_oracle(URIrecordingNoExt, pathToComposition, whichSection):
+    '''
+    read phoneme-level ground truth and test
+    '''
     withSynthesis = False
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
     
     if logger.level == logging.DEBUG:
         lyrics.printPhonemeNetwork()
     
+    # consider only part of audio
     fromTs = 0; toTs = 20.88
+    # since not all TextGrid might be on phoneme level
     fromPhonemeIdx  = 1; toPhonemeIdx = 42
     tokenLevelAlignedSuffix = '.syllables'
     
@@ -242,6 +247,7 @@ def test_oracle(URIrecordingNoExt, pathToComposition, whichSection):
             
         
     ANNOTATION_EXT = '.TextGrid'
+    # eval on phrase level
     evalLevel = 2
     correctDuration, totalDuration = _evalAccuracy(URIrecordingNoExt + ANNOTATION_EXT, detectedTokenList, evalLevel, -1, -1 )
     print "accuracy= {}".format(correctDuration / totalDuration)
@@ -255,14 +261,17 @@ if __name__ == '__main__':
     #test_discrete()
     # testRand_DurationHMM()
     
-    test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
+#     test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
     
     
+    withSynthesis = False
+    lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
+    lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
     
 #     decode(lyricsWithModels, observationFeatures)
     
 #     test_backtrack(lyricsWithModels)
-#     test_initialization(lyricsWithModels, observationFeatures)
+    test_initialization(lyricsWithModels, observationFeatures)
 
    
 #     test_decoding(pathToComposition, whichSection)

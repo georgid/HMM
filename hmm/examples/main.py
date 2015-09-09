@@ -16,13 +16,13 @@ from hmm.Parameters import Parameters
 from fpformat import decoder
 from hmm.continuous.DurationPdf import NUMFRAMESPERSEC
 
-parentParentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir, os.path.pardir)) 
-pathJingju = os.path.join(parentParentDir, 'Jingju')
-
-if pathJingju not in sys.path:
-    sys.path.append(pathJingju )
-from ParametersAlgo import ParametersAlgo
+# parentParentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir, os.path.pardir)) 
+# pathJingju = os.path.join(parentParentDir, 'Jingju')
+# 
+# if pathJingju not in sys.path:
+#     sys.path.append(pathJingju )
 from hmm.Path import Path
+from hmm.ParametersAlgo import ParametersAlgo
 
 
 # file parsing tools as external lib 
@@ -75,11 +75,13 @@ def decodeWithOracle(lyrics, URIrecordingNoExt, fromTs, toTs, fromPhonemeIdx, to
     '''
     instead map set as oracle from annotation
     '''
-    
+    ParametersAlgo.DEVIATION_IN_SEC = 0.5
     withSynthesis = 0
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
-    lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
+    
+    dummyDeviation = 1
+    lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', dummyDeviation)
                                         
     lyricsWithModelsORacle.setPhonemeDurs( URIrecordingNoExt + '.TextGrid', fromPhonemeIdx, toPhonemeIdx)
 #     lyricsWithModelsORacle.printPhonemeNetwork()

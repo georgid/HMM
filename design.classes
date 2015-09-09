@@ -39,8 +39,11 @@ exponential distribution based on the wait prob of model
 _mapB_old() - computing pdfs of GMMs in a table B_map 
 the original method from guyz.   has been changed to allow the persistent storage of p(y_t|x_i) because calc_b_j() is very slow. 
  persistent storage is controlled by self.usePersistentFiles()
+
+setNonVocal(): listNonVocalFragments: if listNonVocalFragments is empty then no predicted vocal fragments will be taken into account  
  
 _mapB() - uses skikit learn for computing pdfs of GMMs: actual computation happens in hmm.continuous.GMHMM.GMHMM._pdfAllFeatures and normalization here
+ uses 
  
  Path
 ==================

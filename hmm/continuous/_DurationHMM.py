@@ -165,7 +165,11 @@ class _DurationHMM(_ContinuousHMM):
         # normal distrib
         scoreDurCurrState = self.durationMap[whichState]
         return stateWithDuration.durationDistribution.getWaitLogLik(d+1, scoreDurCurrState)
-         
+     
+
+            
+            
+            
     
     def _viterbiForcedDur(self, lenObservations):
         # sanity check. make sure durations are init from score
@@ -303,7 +307,9 @@ class _DurationHMM(_ContinuousHMM):
             phiStar = -Infinity
         else:
             currReducedMaxDur = min(t, currStateWithDur.getMaxRefDur())
-            phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
+#             phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
+            phiStar, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, currReducedMaxDur)
+
         return phiStar, fromState, maxDurIndex
         
  
@@ -375,6 +381,7 @@ class _DurationHMM(_ContinuousHMM):
         
     def getMaxPhi_slow(self, t, currState, minDur, endDur):
         '''
+        @deprecated
         recursive rule. Find duration that maximizes current phi
         @return: maxPhi - pprob
         @return: fromState - from which state we come (hard coded to prev. state in forced alignment) 
@@ -501,7 +508,7 @@ class _DurationHMM(_ContinuousHMM):
                     self.chi[t,currState] = t
                     
         
-        writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi_init_2') 
+        writeListOfListToTextFile(self.phi, None , PATH_LOGS + '/phi_init_1') 
     
 
         
