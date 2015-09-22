@@ -10,16 +10,15 @@ from main import decode, loadSmallAudioFragment
 import os
 import sys
 from hmm.Parameters import Parameters
-from hmm.examples.main import backtrack, getDecoder, decodeWithOracle
-from eyed3.utils import LoggingAction
+from hmm.examples.main import  getDecoder, decodeWithOracle
 
 # file parsing tools as external lib 
 parentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir,os.path.pardir )) 
 print parentDir
 
-pathAlignmentDuration = os.path.join(parentDir, 'AlignmentDuration')
-if not pathAlignmentDuration in sys.path:
-    sys.path.append(pathAlignmentDuration)
+pathJingjuAlignment = os.path.join(parentDir, 'AlignmentDuration')
+if not pathJingjuAlignment in sys.path:
+    sys.path.append(pathJingjuAlignment)
 
 from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
@@ -54,6 +53,13 @@ logger.setLevel(logging.DEBUG)
 pathEvaluation = os.path.join(parentDir, 'AlignmentEvaluation')
 sys.path.append(pathEvaluation)
 from AccuracyEvaluator import _evalAccuracy
+
+
+pathJingjuAlignment = os.path.join(parentDir, 'JingjuAlignment')
+if not pathJingjuAlignment in sys.path:
+    sys.path.append(pathJingjuAlignment)
+from lyricsParser import divideIntoSectionsFromAnno
+
 
 def test_simple():
     n = 2
@@ -174,7 +180,7 @@ def testRand_DurationHMM():
     observationFeatures = numpy.array((0.6 * numpy.random.random_sample((2,d)) - 0.3), dtype=numpy.double)
 #     observationFeatures = loadMFCCs(URIrecordingNoExt)
 
-    decode(lyricsWithModels, observationFeatures)
+    decode(lyricsWithModels, observationFeatures, 'testRecording')
     
         
 #     # test computePhiStar
@@ -183,13 +189,15 @@ def testRand_DurationHMM():
 #     phiStar, fromState, maxDurIndex = durGMMhmm.computePhiStar(currTime, currState)
 #     print "phiStar={}, maxDurIndex={}".format(phiStar, maxDurIndex)
 
-def test_backtrack(lyricsWithModels):
+def test_backtrack(lyricsWithModels, URIrecordingNoExt):
 
-    decoder = getDecoder(lyricsWithModels)
+    decoder = getDecoder(lyricsWithModels, URIrecordingNoExt)
+    absPathPsi = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'psi' )
+    psi = numpy.loadtxt(absPathPsi)
     
-    psi = numpy.loadtxt('psi')
-    chi = numpy.loadtxt('chi')
-    backtrack(chi, psi, decoder)
+    absPathChi = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'chi' )
+    chi = numpy.loadtxt(absPathChi)
+    decoder. backtrack(chi, psi)
 
 
 def test_decoding(pathToComposition, whichSection):
@@ -201,18 +209,18 @@ def test_decoding(pathToComposition, whichSection):
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
     lyricsWithModels, observationFeatures, URIRecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
     
-    decoder = getDecoder(lyricsWithModels)
+    decoder = getDecoder(lyricsWithModels, URIRecordingChunk)
     
     decoder.hmmNetwork.phi = numpy.loadtxt('phi_init')
     lenObs = len(observationFeatures)
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObs)
 
 
-def test_initialization(lyricsWithModels, observationFeatures):
+def test_initialization(lyricsWithModels, URIrecordingNoExt, observationFeatures):
     '''
     just initialilzation step.
     '''
-    decoder = getDecoder(lyricsWithModels)
+    decoder = getDecoder(lyricsWithModels, URIrecordingNoExt)
     #  init
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
 
@@ -231,7 +239,7 @@ def test_oracle(URIrecordingNoExt, pathToComposition, whichSection):
     fromTs = 0; toTs = 20.88
     # since not all TextGrid might be on phoneme level
     fromPhonemeIdx  = 1; toPhonemeIdx = 42
-    tokenLevelAlignedSuffix = '.syllables'
+    tokenLevelAlignedSuffix = '.syllables_oracle'
     
     detectedAlignedfileName = URIrecordingNoExt + tokenLevelAlignedSuffix
     if os.path.isfile(detectedAlignedfileName):
@@ -253,6 +261,12 @@ def test_oracle(URIrecordingNoExt, pathToComposition, whichSection):
     print "accuracy= {}".format(correctDuration / totalDuration)
     
     return detectedTokenList
+
+
+
+
+
+
     
 
 if __name__ == '__main__':    
@@ -262,16 +276,17 @@ if __name__ == '__main__':
     # testRand_DurationHMM()
     
 #     test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
-    
-    
+
+#####################     for all tetst below inclide these 3 lines for lyrics:
     withSynthesis = False
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-    lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    lyricsWithModels, observationFeatures, URIrecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+#     
+#     decode(lyricsWithModels, observationFeatures, URIrecordingNoExt)
+#   
     
-#     decode(lyricsWithModels, observationFeatures)
-    
-#     test_backtrack(lyricsWithModels)
-    test_initialization(lyricsWithModels, observationFeatures)
+#     test_backtrack(lyricsWithModels, URIrecordingNoExt)
+#     test_initialization(lyricsWithModels, URIrecordingNoExt, observationFeatures)
 
    
-#     test_decoding(pathToComposition, whichSection)
+    test_decoding(pathToComposition, whichSection)

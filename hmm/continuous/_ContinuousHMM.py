@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 from hmm.continuous.DurationPdf import NUMFRAMESPERSEC
+from matplotlib.lines import Line2D
 # from sklearn.utils.extmath import logsumexp
 
 parentDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(sys.argv[0]) ), os.path.pardir ) )
@@ -23,7 +24,7 @@ from hmm._BaseHMM import _BaseHMM
 workspaceDir = os.path.abspath(  os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir,  os.path.pardir, os.path.pardir ) ) 
 pathUtils = os.path.join(workspaceDir, 'utilsLyrics')
 if pathUtils not in sys.path: sys.path.append(pathUtils )
-from Utilz import writeListOfListToTextFile
+from Utilz import writeListOfListToTextFile, readListTextFile
 
 
 
@@ -227,21 +228,44 @@ class _ContinuousHMM(_BaseHMM):
         self._normalizeBByMaxLog()
         
 #         if self.logger.level == logging.INFO:
-        self.visualizeBMap()
+        ax = self.visualizeBMap()
+#         self.visualizePath(ax)
          
        
 
     def visualizeBMap(self): 
             import matplotlib.pyplot as plt
-            plt.imshow(self.B_map, extent=[0, 100, 0, 100], interpolation='none')
-            plt.imshow(self.B_map, interpolation='none')
-            
-            plt.colorbar()
-            plt.show()
+            import matplotlib
+            matplotlib.interactive(False)
 
+#             plt.figure(figsize=(16,8))
+            fig, ax = plt.subplots()
+#             ax.imshow(self.B_map, extent=[0, 200, 0, 100], interpolation='none')
+            plt.imshow(self.B_map, interpolation='none')
+
+#             plt.colorbar()
+#             fig.colorbar()
+            ax.autoscale(False)
+            return ax
+#             plt.show(block=False)
+
+    def visualizePath(self, ax):
+        import matplotlib.pyplot as plt
+        path = readListTextFile('path')
+            
+        if self.B_map.shape[1] != len(path):
+            sys.exit("obs features are {}, but path has duration {}".format(self.B_map.shape[1], len(path)))
+        
+        
+        
+        ax.plot(path, marker='x', color='k', markersize=5)
+        
+        plt.show()
+        
     
     def _mapB_OLD(self, observations):
         '''
+        @deprecated
         Required implementation for _mapB. Refer to _BaseHMM for more details.
         This method highly optimizes the running time, since all PDF calculations
         are done here once in each training iteration.

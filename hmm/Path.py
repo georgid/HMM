@@ -5,6 +5,12 @@ Created on Nov 4, 2014
 '''
 import numpy
 import sys
+import logging
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# in backtracking allow to start this much from end back
+TOTAL_ALLOWED_DEV_COEFF= 0.2
 
 
 class Path(object):
@@ -22,20 +28,43 @@ class Path(object):
         self.endingTimes = []
         
         if chiBackPointers != None and psiBackPointer != None:
-            self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer)
+            
+            # infer from pointer matrix 
+            totalTime, numStates = numpy.shape(chiBackPointers)
+            finalTime = totalTime
+            numdecodedStates = -1
+            totalAllowedDevTime = (totalTime - TOTAL_ALLOWED_DEV_COEFF * totalTime)
+            
+            while numStates != numdecodedStates and finalTime > totalAllowedDevTime:
+                finalTime = finalTime - 1
+                logger.debug('backtracking from final time {}'.format(finalTime))
+
+                self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer, finalTime)
+                self._path2stateIndices()
+                numdecodedStates = len(self.indicesStateStarts)
+            if numStates != numdecodedStates:
+                logger.debug(' backtracking NOT completed! stopped because reached totalAllowedDevTime  {}'.format(totalAllowedDevTime))
+            
+            
+ 
+        
     
     def setPatRaw(self, pathRaw):
         self.pathRaw = pathRaw
         
-    def _backtrackForcedDur(self, chiBackPointers, psiBackPointer):
+    def _backtrackForcedDur(self, chiBackPointers, psiBackPointer, finalTime):
         '''
         starts at last state and assumes states increase by one
         '''
         length, numStates = numpy.shape(chiBackPointers)
         rawPath = numpy.empty( (length), dtype=int )
+        # put last state till end of path
+        if finalTime < length - 1:
+            rawPath[finalTime+1:length] = numStates - 1
+
         
         # termination: start at end state
-        t = length-1
+        t = finalTime
         currState = numStates - 1
         duration = chiBackPointers[t,currState]
 
@@ -48,7 +77,7 @@ class Path(object):
             
             rawPath[t-duration+1:t+1] = currState
             
-            # DEBUG: 
+            # for DEBUG: track durations: 
             self.durations.append(duration)
             self.endingTimes.append(t)
 
@@ -85,6 +114,7 @@ class Path(object):
             if not p == currState:
               self.indicesStateStarts.append(i)
               currState = p
+              
               
     def printDurations(self):
         '''
