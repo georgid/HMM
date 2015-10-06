@@ -58,7 +58,6 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     asserts it works. no results provided 
     '''
     
-    print fromTs
     htkParser = HtkConverter()
     htkParser.load(MODEL_URI, HMM_LIST_URI)
     lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
@@ -69,40 +68,20 @@ def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, 
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
 #     lyricsWithModels.printPhonemeNetwork()
 
-
-    
     return lyricsWithModels, observationFeatures, URIRecordingChunk
 
 
-def decodeWithOracle(lyrics, URIrecordingNoExt, fromTs, toTs, fromPhonemeIdx, toPhonemeIdx):
-    '''
-    instead of bMap  set as oracle from annotation
-    '''
-    ParametersAlgo.DEVIATION_IN_SEC = 0.1
-    # synthesis not needed really in this setting. workaround because without synth takes whole recording  
-    withSynthesis = 1
-    htkParser = HtkConverter()
-    htkParser.load(MODEL_URI, HMM_LIST_URI)
-    
-    dummyDeviation = 1
-    # lyricsWithModelsORacle used only as helper for state durs, but not functionally
-    lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', dummyDeviation)
-    lyricsWithModelsORacle.setPhonemeDurs( URIrecordingNoExt + '.TextGrid', fromPhonemeIdx, toPhonemeIdx)
-    
-#     lyricsWithModels, observationFeatures = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
-    lyricsWithModels, observationFeatures, URIRecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs, toTs)
-    
+def parsePhoenemeAnnoDursOracle(lyrics, phonemeListExtracted ):
 
-    decoder = getDecoder(lyricsWithModels, URIRecordingChunk)
-    
-    lenObservations = decoder.hmmNetwork.initDecodingParametersOracle(lyricsWithModelsORacle, URIrecordingNoExt, fromTs, toTs)
-    
-    chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObservations)
-#     
-    detectedWordList, path = decoder.backtrack(chiBackPointer, psiBackPointer)
-    return detectedWordList
-
-
+        htkParser = HtkConverter()
+        htkParser.load(MODEL_URI, HMM_LIST_URI)
+        
+        dummyDeviation = 1
+        # lyricsWithModelsORacle used only as helper for state durs, but not functionally
+        lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', dummyDeviation)
+        lyricsWithModelsORacle.setPhonemeDurs( phonemeListExtracted)
+        
+        return lyricsWithModelsORacle
 
 def getDecoder(lyricsWithModels, URIrecordingNoExt):
     '''
@@ -125,8 +104,9 @@ def decode(lyricsWithModels, observationFeatures, URIrecordingNoExt):
     decoder.hmmNetwork.initDecodingParameters(observationFeatures)
     lenObs = len(observationFeatures)
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObs)
-#     
-    decoder.backtrack(chiBackPointer, psiBackPointer)
+#   
+    withOracle = 0  
+    decoder.backtrack(withOracle, chiBackPointer, psiBackPointer)
 
 
 

@@ -20,7 +20,7 @@ Open concerns:
 -----------------------------------
 
 
-Duration-model extension 
+Duration-model extension : done by georgi.dzhambazov@upf.edu
 =========================
 
 * fixed underflow due to multiplication of probabilities ( handled by sum log(probs) )
@@ -29,6 +29,8 @@ Duration-model extension
 
 * added oracle test: Oracle test allow to check if model is able to perform perfect alignment on ground truth timestamps of phonemes (e.g. replace observation posteriors with 1-s from ground truth) (described more here: http://www.terasoft.com.tw/conf/ismir2014/proceedings/T050_126_Paper.pdf ) 
 hmm.examples.tests.test_oracle() - needs phoneme-level annotation
+
+Algorithm parameters can be changed from class hmm.ParametersAlgo 
 
 TODO: 
 use _ContinuousHMM.usePersistentProbs to store persistently <fileName>.durationsMap to save time Now computed each time

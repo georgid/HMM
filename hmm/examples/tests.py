@@ -10,7 +10,7 @@ from main import decode, loadSmallAudioFragment
 import os
 import sys
 from hmm.Parameters import Parameters
-from hmm.examples.main import  getDecoder, decodeWithOracle
+from hmm.examples.main import  getDecoder
 
 # file parsing tools as external lib 
 parentDir = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__) ), os.path.pardir, os.path.pardir,os.path.pardir )) 
@@ -58,7 +58,6 @@ from AccuracyEvaluator import _evalAccuracy
 pathJingjuAlignment = os.path.join(parentDir, 'JingjuAlignment')
 if not pathJingjuAlignment in sys.path:
     sys.path.append(pathJingjuAlignment)
-from lyricsParser import divideIntoSectionsFromAnno
 
 
 def test_simple():
@@ -197,7 +196,8 @@ def test_backtrack(lyricsWithModels, URIrecordingNoExt):
     
     absPathChi = os.path.join(os.path.dirname(os.path.realpath(sys.argv[0])), 'chi' )
     chi = numpy.loadtxt(absPathChi)
-    decoder. backtrack(chi, psi)
+    withOracle= 0
+    decoder. backtrack(withOracle, chi, psi)
 
 
 def test_decoding(pathToComposition, whichSection):
