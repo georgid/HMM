@@ -200,14 +200,15 @@ def test_backtrack(lyricsWithModels, URIrecordingNoExt):
     decoder. backtrack(withOracle, chi, psi)
 
 
-def test_decoding(pathToComposition, whichSection):
+def test_decoding_makam(pathToComposition, whichSection):
     '''
     read initialized matrix from file. useful to test getMaxPhi with vector
     '''
     
     withSynthesis = True
+    withHTK = 1
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-    lyricsWithModels, observationFeatures, URIRecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    lyricsWithModels, observationFeatures, URIRecordingChunk = loadSmallAudioFragment(lyrics, withHTK,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
     
     decoder = getDecoder(lyricsWithModels, URIRecordingChunk)
     
@@ -275,18 +276,19 @@ if __name__ == '__main__':
     #test_discrete()
     # testRand_DurationHMM()
     
-#     test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
+    test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
 
 #####################     for all tetst below inclide these 3 lines for lyrics:
     withSynthesis = False
+    withHTK = 0  
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-    lyricsWithModels, observationFeatures, URIrecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
+    lyricsWithModels, observationFeatures, URIrecordingChunk = loadSmallAudioFragment(lyrics,  withHTK, URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
 #     
-#     decode(lyricsWithModels, observationFeatures, URIrecordingNoExt)
+    decode(lyricsWithModels, observationFeatures, URIrecordingNoExt)
 #   
     
 #     test_backtrack(lyricsWithModels, URIrecordingNoExt)
 #     test_initialization(lyricsWithModels, URIrecordingNoExt, observationFeatures)
 
    
-    test_decoding(pathToComposition, whichSection)
+#     test_decoding_makam(pathToComposition, whichSection)

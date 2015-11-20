@@ -137,7 +137,7 @@ class _ContinuousHMM(_BaseHMM):
     def _mapBOracle(self,  lyricsWithModelsOracle, lenObservations, fromTs):
         '''
         loop though phoneme states from  lyricsWithModelsOracle. 
-        For each one, for the frames of its duration assign 1 in B_map and
+        For each one, for the frames of its duration assign 1 in B_map. So B_map is zero for all other phonemes
          
         @param lyricsWithModelsOracle - lyrics read from annotation ground truth
         @param fromTs - time to start at

@@ -36,6 +36,11 @@ if not pathJingjuAlignment in sys.path:
 from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
 from LyricsWithModels import LyricsWithModels
+from LyricsWithGMMs import LyricsWithGMMs
+
+from LyricsWithHTKModels import LyricsWithHTKModels
+
+
 from Decoder import Decoder
 from FeatureExtractor import loadMFCCs
 
@@ -52,34 +57,39 @@ from htk_converter import HtkConverter
 
 
 
-def loadSmallAudioFragment(lyrics, URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1):
+def loadSmallAudioFragment(lyrics, withHTK, URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1):
     '''
     test duration-explicit HMM with audio features from real recording and htk-loaded model
     asserts it works. no results provided 
     '''
-    
-    htkParser = HtkConverter()
-    htkParser.load(MODEL_URI, HMM_LIST_URI)
-    lyricsWithModels = LyricsWithModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
-     
     observationFeatures, URIRecordingChunk = loadMFCCs(URIrecordingNoExt, withSynthesis, fromTs, toTs) #     observationFeatures = observationFeatures[0:1000]
 
+    if withHTK:
+        htkParser = HtkConverter()
+        htkParser.load(MODEL_URI, HMM_LIST_URI)
+    
+        lyricsWithModels = LyricsWithHTKModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
+     
+    else:
+        lyricsWithModels = LyricsWithGMMs(lyrics,  'True', ParametersAlgo.DEVIATION_IN_SEC)
 
+    
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
-#     lyricsWithModels.printPhonemeNetwork()
+    lyricsWithModels.printPhonemeNetwork()
 
     return lyricsWithModels, observationFeatures, URIRecordingChunk
 
 
-def parsePhoenemeAnnoDursOracle(lyrics, phonemeListExtracted ):
+
+def loadSmallAudioFragmentOracle(lyrics, phonemeAnnotaions ):
 
         htkParser = HtkConverter()
         htkParser.load(MODEL_URI, HMM_LIST_URI)
         
-        dummyDeviation = 1
+        
         # lyricsWithModelsORacle used only as helper for state durs, but not functionally
-        lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'False', dummyDeviation)
-        lyricsWithModelsORacle.setPhonemeDurs( phonemeListExtracted)
+        lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'True', ParametersAlgo.DEVIATION_IN_SEC)
+        lyricsWithModelsORacle.setPhonemeNumFrameDurs( phonemeAnnotaions)
         
         return lyricsWithModelsORacle
 
@@ -89,8 +99,9 @@ def getDecoder(lyricsWithModels, URIrecordingNoExt):
     '''
     alpha = 0.97
     ONLY_MIDDLE_STATE=False
+    withHTK = 1
     params = Parameters(alpha, ONLY_MIDDLE_STATE)
-    decoder = Decoder(lyricsWithModels, URIrecordingNoExt, params.ALPHA)
+    decoder = Decoder(lyricsWithModels, URIrecordingNoExt, withHTK, params.ALPHA)
     return decoder
 
 
@@ -110,12 +121,3 @@ def decode(lyricsWithModels, observationFeatures, URIrecordingNoExt):
 
 
 
-    
-# if __name__ == '__main__':    
-# 
-#     
-#     withSynthesis = False
-#     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
-#     lyricsWithModels, observationFeatures, URIrecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
-#      
-#     decode(lyricsWithModels, observationFeatures)

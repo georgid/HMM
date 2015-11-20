@@ -24,11 +24,14 @@ class StateWithDur(State):
     '''
 
 
-    def __init__(self, mixtures, phonemeName, idxInPhoneme, distribType='normal', deviationInSec=0.1):
+    def __init__(self, mixtures, phonemeName, idxInPhoneme, distribType='normal', deviationInSec=0.1, gmm=None):
         '''
         Constructor
         '''
-        State.__init__(self, mixtures)
+        if gmm == None: # htk-model type of state
+            State.__init__(self, mixtures)
+        else: # GMM xsampa model
+            self.mixtures = gmm
         self.phonemeName = phonemeName
         self.idxInPhoneme  = idxInPhoneme
         
@@ -38,7 +41,7 @@ class StateWithDur(State):
             pass
         else:
             if not distribType=='normal' and not distribType=='exponential':
-                sys.exit(" unknown distrib type. Only normal and exponential aimplemented now!")
+                sys.exit(" unknown distrib type. Only normal and exponential implemented now!")
             
         self.distributionType = distribType
         if distribType == 'normal':
@@ -64,14 +67,25 @@ class StateWithDur(State):
         for exp distrib
         '''   
         self.durationDistribution.setWaitProb(waitProb, self.durationInFrames)
- 
-    def getMaxRefDur(self):
+    
+    def setMaxRefDur(self):
+        
+        try:
+            self.durationInFrames
+        except AttributeError: 
+            sys.exit('self.durationInFrames in frames not set. Use setDurationInFrames() first')
+                
+            
         if self.distributionType == 'normal':
-            a= int(self.durationDistribution.getMaxRefDur(self.durationInFrames))
-        else:
-            a= int(self.durationDistribution.getMaxRefDur())
-#         print "durationInFrames {}".format(self.durationInFrames) 
-        return a
+            self.maxRefDur = int(self.durationDistribution.getMaxRefDur(self.durationInFrames))
+        else:  # exponential
+            self.maxRefDur = int(self.durationDistribution.getMaxRefDur())
+        
+        
+        
+    def getMaxRefDur(self):
+        
+        return self.maxRefDur
             
     def getMinRefDur(self):
         if self.distributionType == 'normal':

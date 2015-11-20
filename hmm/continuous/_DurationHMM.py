@@ -17,6 +17,7 @@ from hmm.continuous.ExpDurationPdf import ExpDurationPdf
 
 import essentia.standard
 import logging
+from hmm.StateWithDur import StateWithDur
 
 # to replace 0: avoid log(0) = -inf. -Inf + p(d) makes useless the effect of  p(d)
 MINIMAL_PROB = sys.float_info.min
@@ -43,14 +44,18 @@ class _DurationHMM(_ContinuousHMM):
     '''
     Implements the decoding with duration probabilities, but should not be used directly.
     '''
-    def __init__(self,statesNetwork, numMixtures, numDimensions):
+    def __init__(self,statesNetwork, withHTK):
     
 #     def __init__(self,n,m,d=1,A=None,means=None,covars=None,w=None,pi=None,min_std=0.01,init_type='uniform',precision=numpy.double, verbose=False):
             '''
             See _ContinuousHMM constructor for more information
             '''
-            means, covars, weights, pi = self._constructHMMNetworkParameters(statesNetwork, numMixtures, numDimensions)
-             
+            if withHTK:
+                numMixtures, numDimensions, means, covars, weights, pi = self._constructHMMNetworkParametersHTK(statesNetwork)
+            else:
+                numMixtures, numDimensions, means, covars, weights, pi = self._constructHMMNetworkParameters(statesNetwork)
+
+                
             n = len(statesNetwork)
             min_std=0.01
             init_type='uniform'
@@ -65,36 +70,13 @@ class _DurationHMM(_ContinuousHMM):
             self.ALPHA = ALPHA # could be redefined by setAlpha() method
 
       
-    def _constructHMMNetworkParameters(self,  statesSequence, numMixtures, numDimensions):
+    def _constructHMMNetworkParametersHTK(self,  statesSequence):
         '''
         tranform other htkModel params to  format of gyuz's hmm class
         '''
         
        
-        numStates = len(statesSequence)
-        means = numpy.empty((numStates, numMixtures, numDimensions))
-        
-        # init covars
-        covars = [[ numpy.matrix(numpy.eye(numDimensions,numDimensions)) for j in xrange(numMixtures)] for i in xrange(numStates)]
-        
-        weights = numpy.ones((numStates,numMixtures),dtype=numpy.double)
-        
-        # start probs :
-        pi = numpy.zeros((numStates), dtype=numpy.double)
-        
-        # avoid log(0) 
-        pi.fill(sys.float_info.min)
-#          allow to start only at first state
-        pi[0] = 1
-
-#         pi[0] = 0.33
-#         pi[1] = 0.33
-#         pi[2] = 0.33
-        
-        # equal prob. for states to start
-#         pi = numpy.ones( (numStates)) *(1.0/numStates)
-        
-    
+        numMixtures, numDimensions, weights, means, covars, pi = self.initHMMNetworkParameters(statesSequence, withHTK = 1)
          
         if statesSequence==None:
             sys.exit('no state sequence')
@@ -111,8 +93,74 @@ class _DurationHMM(_ContinuousHMM):
                 variance_ = mixture.var.vector
                 for k in  range(len( variance_) ):
                     covars[i][numMixture-1][k,k] = variance_[k]
-        return means, covars, weights, pi
+        return numMixtures, numDimensions, means, covars, weights, pi
+ 
+ 
+
+
+    def _constructHMMNetworkParameters(self,  statesSequence):
+        '''
+        transform other htkModel params to  format of gyuz's hmm class
+        '''
+        
+        numMixtures, numDimensions, weights, means, covars, pi = self.initHMMNetworkParameters(statesSequence, withHTK=0)
+        
     
+        ########### convert to hmm format  
+        if statesSequence==None:
+            sys.exit('no state sequence')
+               
+        for i in range(len(statesSequence) ):
+            state  = statesSequence[i] 
+            
+            gmm_ = state.mixtures
+            
+            for numMixture in range(gmm_.n_components):
+                weights[i,numMixture] = gmm_.weights_[numMixture]
+                
+                means[i,numMixture,:] = gmm_.means_[numMixture]
+                
+                variance_ = gmm_.covars_[numMixture]
+                
+                for k in  range(len( variance_) ):
+                    covars[i][numMixture][k,k] = variance_[k]
+        
+        return numMixtures, numDimensions, means, covars, weights, pi
+    
+        
+    def initHMMNetworkParameters(self, statesSequence, withHTK):
+        '''
+        helper method
+        '''
+        
+        ####### get dimensions from first read gmm.
+        if withHTK == 1:
+            numMixtures = 9
+            numDimensions = 25
+            
+        else:
+            
+            firstGmm_ = statesSequence[0].mixtures
+            numMixtures = firstGmm_.n_components
+            firstMeansVector = firstGmm_.means_[0]
+            numDimensions = firstMeansVector.shape[0]
+        
+        numStates = len(statesSequence)
+    
+    ###### init parameters
+        means = numpy.empty((numStates, numMixtures, numDimensions))
+    # init covars
+        covars = [[numpy.matrix(numpy.eye(numDimensions, numDimensions)) for j in xrange(numMixtures)] for i in xrange(numStates)]
+        weights = numpy.ones((numStates, numMixtures), dtype=numpy.double)
+    # start probs :
+        pi = numpy.zeros((numStates), dtype=numpy.double)
+    # avoid log(0)
+        pi.fill(sys.float_info.min) #          allow to start only at first state
+        pi[0] = 1
+    
+        return  numMixtures, numDimensions, weights, means, covars,  pi
+
+                
                 
     def setALPHA(self, ALPHA):
         # DURATION_WEIGHT 
@@ -127,7 +175,8 @@ class _DurationHMM(_ContinuousHMM):
         
         '''
         if listDurations == []:
-            for  stateWithDur_ in self.statesNetwork:
+            for stateWithDur_ in self.statesNetwork:
+                stateWithDur_.setMaxRefDur()
                 listDurations.append(stateWithDur_.getDurationInFrames())
                 
         # sanity check  
@@ -143,8 +192,9 @@ class _DurationHMM(_ContinuousHMM):
        
 #         self.durationPdf = DurationPdf(self.R_MAX, self.usePersistentFiles)
         self.R_MAX = 0
-        for  stateWithDur_ in self.statesNetwork:
+        for stateWithDur_ in self.statesNetwork:
             if stateWithDur_.getMaxRefDur() > self.R_MAX:
+                self.StateWithR_MAX = stateWithDur_
                 self.R_MAX  = stateWithDur_.getMaxRefDur()
         self.R_MAX = int(self.R_MAX)
         self.logger.info("R_MAX={}".format(self.R_MAX))
@@ -197,6 +247,8 @@ class _DurationHMM(_ContinuousHMM):
     
     
     
+
+   
     def initDecodingParametersOracle(self, lyricsWithModels, URIRecordingNoExt, fromTs, toTs):
         '''
         helper method to init all params
@@ -231,10 +283,25 @@ class _DurationHMM(_ContinuousHMM):
         self.psi.fill(-1)
    
         # init. t< R_MAX
-        if (self.R_MAX >= lenObservations):
-            sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
+        self.assureSaneMaxRefDurs(lenObservations)
+                 
         self._initBeginingPhis(lenObservations)
         return lenObservations
+
+    def assureSaneMaxRefDurs(self, lenObservations):
+        
+        if (self.R_MAX >= lenObservations):
+            self.logger.debug("MAX_Dur {} of a state is more than total number of observations {}. rreducing max ref duration of some states".format(self.R_MAX, lenObservations))
+            
+            # check all states as some might be over lenObservations
+            for stateWithDur in self.statesNetwork:
+                if stateWithDur.getMaxRefDur() >= lenObservations:
+                    #   reduce max ref dur for some states to len observation
+                    stateWithDur.maxRefDur = max(lenObservations, stateWithDur.getMinRefDur())
+        
+        self.R_MAX  = int( self.StateWithR_MAX.getMaxRefDur() )
+            
+
     
     def initDecodingParameters(self, observations):
         '''
@@ -259,8 +326,7 @@ class _DurationHMM(_ContinuousHMM):
         self.psi.fill(-1)
    
         # init. t< R_MAX
-        if (self.R_MAX >= lenObservations):
-            sys.exit("MAX_Dur {} of a state is more than total number of observations {}. Unable to decode".format(self.R_MAX, lenObservations))
+        self.assureSaneMaxRefDurs(lenObservations)
         self._initBeginingPhis(lenObservations)
     
     
@@ -517,7 +583,7 @@ class _DurationHMM(_ContinuousHMM):
         kappas[t][s] - starting and staying at time t in same currState s.
         WITH LogLik 
         '''
-        if lenObservations <= self.R_MAX:
+        if self.R_MAX > lenObservations:
             sys.exit("observations are only {}, R_max = {}. not able to run initialization. Increase size of observations".format(lenObservations,self.R_MAX)) 
         
         print 'init kappas...'
