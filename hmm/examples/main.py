@@ -35,7 +35,7 @@ if not pathJingjuAlignment in sys.path:
     
 from Phonetizer import Phonetizer
 from MakamScore import loadLyrics
-from LyricsWithModels import LyricsWithModels
+
 from LyricsWithGMMs import LyricsWithGMMs
 
 from LyricsWithHTKModels import LyricsWithHTKModels
@@ -71,27 +71,25 @@ def loadSmallAudioFragment(lyrics, withHTK, URIrecordingNoExt, withSynthesis, fr
         lyricsWithModels = LyricsWithHTKModels(lyrics, htkParser, 'False', ParametersAlgo.DEVIATION_IN_SEC)
      
     else:
-        lyricsWithModels = LyricsWithGMMs(lyrics,  'True', ParametersAlgo.DEVIATION_IN_SEC)
+        lyricsWithModels = LyricsWithGMMs(lyrics,  'True', ParametersAlgo.DEVIATION_IN_SEC, URIrecordingNoExt)
 
     
     lyricsWithModels.duration2numFrameDuration(observationFeatures, URIrecordingNoExt)
-    lyricsWithModels.printPhonemeNetwork()
+#     lyricsWithModels.printPhonemeNetwork()
 
     return lyricsWithModels, observationFeatures, URIRecordingChunk
 
 
 
-def loadSmallAudioFragmentOracle(lyrics, phonemeAnnotaions ):
+def loadSmallAudioFragmentOracle(URIrecordingNoExt, lyrics, phonemeAnnotaions ):
 
-        htkParser = HtkConverter()
-        htkParser.load(MODEL_URI, HMM_LIST_URI)
-        
         
         # lyricsWithModelsORacle used only as helper for state durs, but not functionally
-        lyricsWithModelsORacle = LyricsWithModels(lyrics, htkParser, 'True', ParametersAlgo.DEVIATION_IN_SEC)
+        lyricsWithModelsORacle = LyricsWithGMMs(lyrics,  'True', ParametersAlgo.DEVIATION_IN_SEC, URIrecordingNoExt)
         lyricsWithModelsORacle.setPhonemeNumFrameDurs( phonemeAnnotaions)
         
         return lyricsWithModelsORacle
+
 
 def getDecoder(lyricsWithModels, URIrecordingNoExt):
     '''

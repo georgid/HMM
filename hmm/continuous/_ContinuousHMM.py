@@ -86,8 +86,9 @@ class _ContinuousHMM(_BaseHMM):
         self.usePersistentFiles = False
         self.logger = logging.getLogger(__name__)
         # other logger set in decoder 
-        loggingLevel = logging.INFO
-#         loggingLevel = logging.WARNING
+#         loggingLevel = logging.DEBUG
+#         loggingLevel = logging.INFO
+        loggingLevel = logging.WARNING
 
         self.logger.setLevel(loggingLevel)
         
@@ -223,16 +224,17 @@ class _ContinuousHMM(_BaseHMM):
                 self.B_map[:,startFrame:endFrame+1] =  numpy.log(MINIMAL_PROB)
                 self.B_map[numpy.array([indicesSilent]),startFrame:endFrame+1] =  numpy.log(1)
 #                 self.visualizeBMap()
+        #### end of vocal/non-vocal
 
                  
         self._normalizeBByMaxLog()
         
-#         if self.logger.level == logging.INFO:
-        ax = self.visualizeBMap()
-#         self.visualizePath(ax)
+        if self.logger.level == logging.DEBUG:
+            ax = self.visualizeBMap()
+#             self.visualizePath(ax)
          
        
-
+    
     def visualizeBMap(self): 
             import matplotlib.pyplot as plt
             import matplotlib
@@ -246,8 +248,8 @@ class _ContinuousHMM(_BaseHMM):
 #             plt.colorbar()
 #             fig.colorbar()
             ax.autoscale(False)
+            plt.show()
             return ax
-#             plt.show(block=False)
 
     def visualizePath(self, ax):
         import matplotlib.pyplot as plt

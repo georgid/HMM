@@ -276,7 +276,7 @@ if __name__ == '__main__':
     #test_discrete()
     # testRand_DurationHMM()
     
-    test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
+#     test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
 
 #####################     for all tetst below inclide these 3 lines for lyrics:
     withSynthesis = False
