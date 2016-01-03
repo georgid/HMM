@@ -18,7 +18,7 @@ class Path(object):
     Result path postprocessing
     '''
 
-    def __init__(self, chiBackPointers, psiBackPointer):
+    def __init__(self, chiBackPointers, psiBackPointer, phi):
         '''
         Constructor
         '''
@@ -35,20 +35,29 @@ class Path(object):
             numdecodedStates = -1
             totalAllowedDevTime = (totalTime - TOTAL_ALLOWED_DEV_COEFF * totalTime)
             
+            maxPhiMax = -1
             while numStates != numdecodedStates and finalTime > totalAllowedDevTime:
                 finalTime = finalTime - 1
                 logger.debug('backtracking from final time {}'.format(finalTime))
 
                 self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer, finalTime)
+                currPhiMax = self.getMaxPhi(phi, finalTime)
+                if currPhiMax > maxPhiMax:
+                    maxPhiMax = currPhiMax
+                
                 self._path2stateIndices()
                 numdecodedStates = len(self.indicesStateStarts)
             if numStates != numdecodedStates:
                 logger.debug(' backtracking NOT completed! stopped because reached totalAllowedDevTime  {}'.format(totalAllowedDevTime))
+            self.maxPhi = maxPhiMax 
             
             
  
+    def getMaxPhi(self,   phi, finalTime):
+        length, numStates = numpy.shape(phi)
+        return phi[finalTime, numStates -1] 
         
-    
+        
     def setPatRaw(self, pathRaw):
         self.pathRaw = pathRaw
         
@@ -92,6 +101,7 @@ class Path(object):
                 sys.exit("state {} at time {} < 0".format(currState,t))
             
             duration = chiBackPointers[t,currState]
+        # fill in with beginning state
         rawPath[0:t+1] = currState
         
         # DEBUG: add last t

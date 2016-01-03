@@ -383,6 +383,15 @@ class _DurationHMM(_ContinuousHMM):
     def getMaxPhi(self,t,currState,minDur,maxDur):
         '''
         with numpy vector computation
+        
+        recursive rule. Find duration that maximizes current phi
+        @return: maxPhi - pprob
+        @return: fromState - from which state we come (hard coded to prev. state in forced alignment) 
+        @return: maxDurIndex - index Duration with max prob. INdex for t begins at 0
+        
+        used in _initBeginingPhis
+        used in _calcCurrStatePhi
+        
         '''
         
         fromState = currState - 1

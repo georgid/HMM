@@ -115,7 +115,7 @@ def decode(lyricsWithModels, observationFeatures, URIrecordingNoExt):
     chiBackPointer, psiBackPointer = decoder.hmmNetwork._viterbiForcedDur(lenObs)
 #   
     withOracle = 0  
-    decoder.backtrack(withOracle, chiBackPointer, psiBackPointer)
-
+    path = decoder.backtrack(withOracle, chiBackPointer, psiBackPointer)
+    print "maxPhi = " +  path.maxPhi
 
 
