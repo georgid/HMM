@@ -278,15 +278,15 @@ if __name__ == '__main__':
 #     test_oracle(URIrecordingNoExt, pathToComposition, whichSection)
 
 #####################     for all tetst below inclide these 3 lines for lyrics:
-    withSynthesis = False
+    withSynthesis = True
     lyrics = loadLyrics(pathToComposition, whichSection, withSynthesis)
     lyricsWithModels, observationFeatures, URIrecordingChunk = loadSmallAudioFragment(lyrics,  URIrecordingNoExt, withSynthesis, fromTs=-1, toTs=-1)
 #     
-#     decode(lyricsWithModels, observationFeatures, URIrecordingNoExt)
+    decode(lyricsWithModels, observationFeatures, URIrecordingNoExt)
 #   
     
 #     test_backtrack(lyricsWithModels, URIrecordingNoExt)
 #     test_initialization(lyricsWithModels, URIrecordingNoExt, observationFeatures)
 
    
-    test_decoding(pathToComposition, whichSection)
+#     test_decoding(pathToComposition, whichSection)

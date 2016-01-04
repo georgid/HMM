@@ -8,7 +8,7 @@ Created on May 28, 2015
 class ParametersAlgo(object):
     THRESHOLD_PEAKS = -70
 
-    DEVIATION_IN_SEC = 2
+    DEVIATION_IN_SEC = 0.1
 
     # unit: num frames
     NUMFRAMESPERSECOND = 100

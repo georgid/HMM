@@ -23,7 +23,6 @@ class DurationPdf(object):
     def __init__(self, deviationInSec):
         '''
         #@param deviationInSec: how much vocal can deviate from refDur
-        deviationInSec = 0.07
         '''
         
           
