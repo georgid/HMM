@@ -44,9 +44,9 @@ HMM_LIST_URI = modelDIR + '/monophones0'
 MODEL_URI = modelDIR + '/hmmdefs9gmm9iter'
 
 # parser of htk-build speech model
-pathHtkModelParser = os.path.join(parentDir, 'pathHtkModelParser')
-sys.path.append(pathHtkModelParser)
-from htk_converter import HtkConverter
+# pathHtkModelParser = os.path.join(parentDir, 'pathHtkModelParser')
+# sys.path.append(pathHtkModelParser)
+from htkparser.htk_converter import HtkConverter
 
 
 

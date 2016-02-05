@@ -283,7 +283,7 @@ class _DurationHMM(_ContinuousHMM):
         
 #         maxPhi, fromState,  maxDurIndexSlow =  self.getMaxPhi_slow(t, currState, minDur, endDur)
         
-        maxPhi, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, endDur)
+        maxPhi, fromState,  maxDurIndex =  self.getPhiOptimal(t, currState, minDur, endDur)
         
 #         if not maxDurIndex == maxDurIndexSlow:
 #             print "{} and {} not SAME".format(maxDurIndex, maxDurIndexSlow)
@@ -308,13 +308,13 @@ class _DurationHMM(_ContinuousHMM):
         else:
             currReducedMaxDur = min(t, currStateWithDur.getMaxRefDur())
 #             phiStar, fromState, maxDurIndex = self.getMaxPhi_slow(t, currState, minDur, currReducedMaxDur)
-            phiStar, fromState,  maxDurIndex =  self.getMaxPhi(t, currState, minDur, currReducedMaxDur)
+            phiStar, fromState,  maxDurIndex =  self.getPhiOptimal(t, currState, minDur, currReducedMaxDur)
 
         return phiStar, fromState, maxDurIndex
         
  
     
-    def getMaxPhi(self,t,currState,minDur,maxDur):
+    def getPhiOptimal(self,t,currState,minDur,maxDur):
         '''
         with numpy vector computation
         '''

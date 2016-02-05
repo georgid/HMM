@@ -25,8 +25,8 @@ from MakamScore import loadLyrics
 from Decoder import Decoder
 
 
-from PraatVisualiser import tokenList2TabFile
-from Utilz import readListOfListTextFile
+from Utilz import readListOfListTextFile, tokenList2TabFile
+
 
 pathToComposition = '/Users/joro/Documents/Phd/UPF/turkish-makam-lyrics-2-audio-test-data-synthesis/nihavent--sarki--aksak--bakmiyor_cesm-i--haci_arif_bey/'
 URIrecordingNoExt = '/Users/joro/Documents/Phd/UPF/ISTANBUL/safiye/01_Bakmiyor_1_zemin'

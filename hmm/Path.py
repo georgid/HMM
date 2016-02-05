@@ -18,7 +18,7 @@ class Path(object):
     Result path postprocessing
     '''
 
-    def __init__(self, chiBackPointers, psiBackPointer):
+    def __init__(self, chiBackPointers, psiBackPointer, phi):
         '''
         Constructor
         '''
@@ -40,27 +40,39 @@ class Path(object):
                 logger.debug('backtracking from final time {}'.format(finalTime))
 
                 self.pathRaw = self._backtrackForcedDur(chiBackPointers, psiBackPointer, finalTime)
+                self.phiOptPath = self.getPhiOptimal(phi, finalTime)
+#                 currPhiMax = self.getPhiOptimal(phi, finalTime)
+#                 if currPhiMax > maxPhiMax:
+#                     maxPhiMax = currPhiMax
+                
                 self._path2stateIndices()
                 numdecodedStates = len(self.indicesStateStarts)
+            
             if numStates != numdecodedStates:
                 logger.debug(' backtracking NOT completed! stopped because reached totalAllowedDevTime  {}'.format(totalAllowedDevTime))
+#             self.Phi = maxPhiMax 
             
             
  
+    def getPhiOptimal(self,   phi, finalTime):
+        length, numStates = numpy.shape(phi)
+        return phi[finalTime, numStates -1] 
         
-    
+        
     def setPatRaw(self, pathRaw):
         self.pathRaw = pathRaw
         
     def _backtrackForcedDur(self, chiBackPointers, psiBackPointer, finalTime):
         '''
-        starts at last state and assumes states increase by one
+        starts at last state. 
+        finds path following back pointers
         '''
-        length, numStates = numpy.shape(chiBackPointers)
-        rawPath = numpy.empty( (length), dtype=int )
+        totalTIme, numStates = numpy.shape(chiBackPointers)
+        rawPath = numpy.empty( (totalTIme), dtype=int )
+        
         # put last state till end of path
-        if finalTime < length - 1:
-            rawPath[finalTime+1:length] = numStates - 1
+        if finalTime < totalTIme - 1:
+            rawPath[finalTime+1:totalTIme] = numStates - 1
 
         
         # termination: start at end state
@@ -92,6 +104,7 @@ class Path(object):
                 sys.exit("state {} at time {} < 0".format(currState,t))
             
             duration = chiBackPointers[t,currState]
+        # fill in with beginning state
         rawPath[0:t+1] = currState
         
         # DEBUG: add last t
